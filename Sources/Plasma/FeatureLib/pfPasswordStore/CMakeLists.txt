@@ -13,14 +13,6 @@ if(WIN32 AND NOT CYGWIN)
     )
 endif(WIN32 AND NOT CYGWIN)
 
-if(HAVE_LIBSECRET)
-    add_definitions(-DHAVE_LIBSECRET)
-    set(pfPasswordStore_SOURCES ${pfPasswordStore_SOURCES}
-        pfPasswordStore_Unix.cpp
-    )
-    include_directories(${LIBSECRET_INCLUDE_DIRS})
-endif(HAVE_LIBSECRET)
-
 if(APPLE)
     set(pfPasswordStore_SOURCES ${pfPasswordStore_SOURCES}
         pfPasswordStore_Apple.cpp
@@ -36,7 +28,10 @@ if(APPLE)
 endif(APPLE)
 
 if(HAVE_LIBSECRET)
+    target_compile_definitions(pfPasswordStore PUBLIC HAVE_LIBSECRET)
+    target_include_directories(pfPasswordStore PRIVATE ${LIBSECRET_INCLUDE_DIRS})
     target_link_libraries(pfPasswordStore ${LIBSECRET_LIBRARIES})
+    target_sources(pfPasswordStore PRIVATE pfPasswordStore_Unix.cpp)
 endif(HAVE_LIBSECRET)
 
 source_group("Header Files" FILES ${pfPasswordStore_HEADERS})
