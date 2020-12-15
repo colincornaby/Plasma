@@ -4,17 +4,14 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Setup Python ${{ matrix.python-version }}
+    - name: Setup Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.8
 
     - name: Install dependencies
       run: |
@@ -52,4 +49,10 @@ jobs:
           -DPython_ADDITIONAL_VERSIONS=2.7 -DPLASMA_BUILD_TESTS=ON \
           -DPLASMA_BUILD_TOOLS=ON -DPLASMA_BUILD_RESOURCE_DAT=ON ..
         make -j2
+
+    - name: Test Plasma
+      run: |
+        cd ${GITHUB_WORKSPACE}/build
         make check
+      env:
+        CTEST_OUTPUT_ON_FAILURE: 1
