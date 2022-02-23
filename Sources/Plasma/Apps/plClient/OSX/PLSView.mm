@@ -201,8 +201,10 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     pYMsg->fY = deltaY;
     
     @synchronized (self.layer) {
-        self.inputManager->MsgReceive(pXMsg);
-        self.inputManager->MsgReceive(pYMsg);
+        if(self.inputManager) {
+            self.inputManager->MsgReceive(pXMsg);
+            self.inputManager->MsgReceive(pYMsg);
+        }
     }
     
     delete(pXMsg);
