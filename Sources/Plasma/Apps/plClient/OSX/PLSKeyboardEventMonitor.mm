@@ -121,10 +121,6 @@ NSEventMaskFlagsChanged;
         return NO;
     }
     
-    if(event.type == NSEventTypeKeyDown && event.ARepeat) {
-        return YES;
-    }
-    
     //Cocoa keycodes use the ids from the original Mac.
     //Note that Cocoa will not return keycodes for modifier keys like shift.
     //We have to check the modifier flags for that.
@@ -173,13 +169,18 @@ NSEventMaskFlagsChanged;
      as "function keys". So we want to not trap events that are function key events, but we do want to trap the arrow keys.
      */
     //Edit 2: We also want to catch the function key modifier but not the actual function keys
-    if(!(convertedKey == KEY_LEFT || convertedKey == KEY_RIGHT || convertedKey == KEY_UP || convertedKey == KEY_DOWN || (convertedKey >= 58 && convertedKey <= 69)) &&  modifierFlags & NSEventModifierFlagFunction) {
+    if (!(convertedKey == KEY_LEFT || convertedKey == KEY_RIGHT || convertedKey == KEY_UP || convertedKey == KEY_DOWN || (convertedKey >= 58 && convertedKey <= 69)) &&  modifierFlags & NSEventModifierFlagFunction) {
         return NO;
     }
     
-    //NSLog(@"Key event %@, Plasma key is %i, is down %i", event, convertedKey, down);
     @synchronized (self.view.layer) {
-        self.inputManager->HandleKeyEvent(convertedKey, down, false);
+        if (modifierFlags & NSEventModifierFlagFunction) {
+            NSLog(@"Key event %@, Plasma key is %i, is down %i, repeat is %i", event, convertedKey, down, event.ARepeat);
+            self.inputManager->HandleKeyEvent(convertedKey, down, event.ARepeat);
+        } else {
+            char character = [event.characters cStringUsingEncoding:NSUTF8StringEncoding][0];
+            self.inputManager->HandleKeyEvent(convertedKey, down, event.ARepeat, character);
+        }
     }
     return YES;
 }
