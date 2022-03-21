@@ -73,6 +73,34 @@ if(WIN32)
         plClient_Win.cpp
         winmain.cpp
     )
+elseif(APPLE)
+    include_directories("../../PubUtilLib/plPipeline/GL/OSX")
+    set(plClient_SOURCES ${plClient_SOURCES}
+        OSX/main.mm
+        OSX/PLSKeyboardEventMonitor.mm
+        OSX/PLSView.mm
+    )
+    set(plClient_HEADERS ${plClient_HEADERS}
+        OSX/PLSKeyboardEventMonitor.h
+        OSX/PLSView.h
+    )
+    set(RESOURCES OSX/MainMenu.xib)
+    #shaders need to be compiled as part of the app
+    #this could change in the future, but for now the Metal code expects the library to be compiled in the app
+    set(plClient_SHADERS
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/FixedPipelineShaders.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/PlateShaders.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/BiasNormals.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/CompCosines.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveSet7.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/Grass.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveDecEnv.metal
+    )
+    set_source_files_properties(${plClient_SHADERS} PROPERTIES LANGUAGE METAL)
+    source_group("Metal Shaders" FILES ${plClient_SHADERS})
+    set(plClient_SOURCES ${plClient_SOURCES} ${plClient_SHADERS})
+    include_directories("../../FeatureLib/pfMetalPipeline/metal-cpp"
+                        "../../FeatureLib/pfMetalPipeline/ShaderSrc")
 else()
     list(APPEND plClient_SOURCES
         main.cpp
@@ -93,11 +121,27 @@ set(plClient_RESOURCES
     res/headspin.ico
 )
 
-plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
-    SOURCES
-        ${plClient_SOURCES} ${plClient_HEADERS}
-        ${plClient_TEXT} ${plClient_RESOURCES}
-)
+if(APPLE)
+    add_executable(plClient MACOSX_BUNDLE ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES}) 
+    set(MAIN_NIBFILE "MainMenu")           
+    set_target_properties(plClient PROPERTIES
+        BUNDLE True
+        RESOURCE "${RESOURCES}"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/OSX/Info.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER org.openuru.plClient
+        MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
+    )
+    set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
+    target_link_libraries(plClient PRIVATE "-framework Cocoa")
+    target_link_libraries(plClient PRIVATE "-framework QuartzCore")
+else()
+    plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
+        SOURCES
+            ${plClient_SOURCES} ${plClient_HEADERS}
+            ${plClient_TEXT} ${plClient_RESOURCES}
+    )
+endif()
 
 if(PLASMA_BUILD_RESOURCE_DAT)
     target_sources(plClient PRIVATE ${external_SCRIPTS} ${external_SOURCES} ${external_DAT})
@@ -158,6 +202,7 @@ target_link_libraries(
         pfPython
         $<$<BOOL:${PLASMA_PIPELINE_DX}>:pfDXPipeline>
         $<$<BOOL:${PLASMA_PIPELINE_GL}>:pfGLPipeline>
+        $<$<BOOL:${PLASMA_PIPELINE_METAL}>:pfMetalPipeline>
         CURL::libcurl
 )
 
