@@ -8,6 +8,7 @@ set(pfMetalPipeline_SOURCES
     plMetalShader.cpp
     plMetalFragmentShader.cpp
     plMetalVertexShader.cpp
+    plMetalEnumerate.mm
 )
 
 set(pfMetalPipeline_HEADERS
