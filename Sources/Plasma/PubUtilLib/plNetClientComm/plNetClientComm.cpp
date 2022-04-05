@@ -999,8 +999,8 @@ void NetCommSetAccountUsernamePassword (
 
 //============================================================================
 void NetCommSetAuthTokenAndOS (
-    const char16_t*       authToken,
-    const char16_t*       os
+    char16_t              authToken[],
+    char16_t              os[]
 ) {
     if (authToken)
         StrCopy(s_iniAuthToken, authToken, std::size(s_iniAuthToken));
