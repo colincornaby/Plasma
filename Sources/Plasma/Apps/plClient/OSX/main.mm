@@ -46,7 +46,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "plClient/plClientLoader.h"
 #import "PLSKeyboardEventMonitor.h"
 #if PLASMA_PIPELINE_GL
-#include "plPipeline/GL/plGLPipeline.h"
+#include "plGLPipeline/plGLPipeline.h"
 #endif
 #if PLASMA_PIPELINE_METAL
 #include "pfMetalPipeline/plMetalPipeline.h"
