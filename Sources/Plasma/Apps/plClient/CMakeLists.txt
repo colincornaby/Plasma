@@ -121,6 +121,7 @@ elseif(APPLE)
     ../../FeatureLib/pfMetalPipeline/ShaderSrc/Avatar.metal
     ../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveDec1Lay_7.metal
     ../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveRip.metal
+    ../../FeatureLib/pfMetalPipeline/ShaderSrc/Clear.metal
     )
     set_source_files_properties(${plClient_SHADERS} PROPERTIES LANGUAGE METAL)
     source_group("Metal Shaders" FILES ${plClient_SHADERS})
@@ -140,7 +141,8 @@ else()
 endif()
 
 if(APPLE)
-    add_executable(plClient MACOSX_BUNDLE ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES}) 
+    add_executable(plClient MACOSX_BUNDLE ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES})
+    set_target_properties(plClient PROPERTIES XCODE_ATTRIBUTE_MTL_FAST_MATH "YES")
     set(MAIN_NIBFILE "MainMenu")           
     set_target_properties(plClient PROPERTIES
         BUNDLE True
@@ -153,6 +155,19 @@ if(APPLE)
     set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
+    install(
+        TARGETS plClient
+        DESTINATION client
+    )
+    set (searchDirs
+        "${CMAKE_PREFIX_PATH}/lib"
+        "${CMAKE_PREFIX_PATH}/mac64/physx/bin/mac64.xcode/release\}"
+    )
+    install(
+        CODE "include(\"BundleUtilities\")
+            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/plClient.app\" \"\" \"${searchDirs}\")"
+        DESTINATION client
+    )
 else()
     plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
         SOURCES
