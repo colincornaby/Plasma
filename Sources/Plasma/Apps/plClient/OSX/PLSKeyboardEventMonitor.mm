@@ -125,7 +125,6 @@ NSEventMaskFlagsChanged;
     BOOL down = event.type == NSEventTypeKeyDown;
     
     unsigned short keycode = [event keyCode];
-    plKeyDef convertedKey = (plKeyDef)KEYCODE_MAC_TO_HID[keycode];
     //if it's a shift key event only way to derive up or down is through presence in the modifier flag
     if(keycode == kVK_Shift) {
         down = (event.modifierFlags & NSEventModifierFlagShift) != 0;
@@ -145,7 +144,7 @@ NSEventMaskFlagsChanged;
      as "function keys". So we want to not trap events that are function key events, but we do want to trap the arrow keys.
      */
     //Edit 2: We also want to catch the function key modifier but not the actual function keys
-    if (!(keycode == kVK_LeftArrow || keycode == kVK_RightArrow || keycode == kVK_UpArrow || keycode == kVK_DownArrow || (convertedKey >= 99 && convertedKey <= 113)) &&  modifierFlags & NSEventModifierFlagFunction) {
+    if (!(keycode == kVK_LeftArrow || keycode == kVK_RightArrow || keycode == kVK_UpArrow || keycode == kVK_DownArrow || (keycode >= 99 && keycode <= 113)) &&  modifierFlags & NSEventModifierFlagFunction) {
         return NO;
     }
     
