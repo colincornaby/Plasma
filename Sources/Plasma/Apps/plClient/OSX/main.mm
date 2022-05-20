@@ -83,6 +83,10 @@ void PumpMessageQueueProc();
 extern bool gDataServerLocal;
 extern bool gSkipPreload;
 
+bool NeedsResolutionUpdate = false;
+CGSize renderSize;
+CGFloat renderScale;
+
 void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) {}
 void plClient::IChangeResolution(int width, int height) {}
 void plClient::IUpdateProgressIndicator(plOperationProgress* progress) {}
@@ -125,9 +129,9 @@ static const plCmdArgDef s_cmdLineArgs[] = {
     
 }
 
-@property (retain) NSTimer *drawTimer;
 @property (retain) PLSKeyboardEventMonitor *eventMonitor;
 @property CVDisplayLinkRef displayLink;
+@property dispatch_queue_t renderQueue;
 @property CALayer* renderLayer;
 @property (weak) PLSView* plsView;
 
@@ -160,13 +164,15 @@ PF_CONSOLE_LINK_ALL()
     return self;
 }
 
+dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL);
+
 - (void)startRunLoop {
-    dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL);
     
     dispatch_async(loadingQueue, ^{
         gClient->WindowActivate(TRUE);
         gClient->SetMessagePumpProc(PumpMessageQueueProc);
         gClient.Start();
+        [self.plsView setBoundsSize:self.plsView.bounds.size];
     });
     
     dispatch_async(loadingQueue, ^{
@@ -201,20 +207,20 @@ PF_CONSOLE_LINK_ALL()
 
 - (void)runLoop {
     gClient->MainLoop();
+    PumpMessageQueueProc();
 
     if (gClient->GetDone()) {
-        [NSApp terminate:self];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [NSApp terminate:self];
+        });
     }
 }
 
 - (void)renderView:(PLSView *)view didChangeOutputSize:(CGSize)size scale:(NSUInteger)scale
 {
-    float aspectratio = (float)size.width / (float)size.height;
-    @synchronized (_renderLayer) {
-        pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
-        plMouseDevice::Instance()->SetDisplayResolution(size.width/scale, size.height/scale);
-        gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
-    }
+    NeedsResolutionUpdate = true;
+    renderSize = size;
+    renderScale = scale;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
@@ -224,6 +230,7 @@ PF_CONSOLE_LINK_ALL()
     PLSLoginWindowController *loginWindow = [[PLSLoginWindowController alloc] init];
     loginWindow.delegate = self;
     [loginWindow showWindow:self];
+    [loginWindow.window makeKeyAndOrderFront:self];
 }
 
 - (void)loginWindowControllerDidLogin:(PLSLoginWindowController *)sender
@@ -245,10 +252,10 @@ PF_CONSOLE_LINK_ALL()
 
     // Window controller
     [self.window setContentSize:NSMakeSize(800, 600)];
-#if 0
+//#if 0
     //allow this executation path to start in full screen
-    [self.window toggleFullScreen:self];
-#endif
+    //[self.window toggleFullScreen:self];
+//#endif
     [self.window center];
     [self.window makeKeyAndOrderFront:self];
     self.renderLayer = self.window.contentView.layer;
@@ -324,6 +331,15 @@ PF_CONSOLE_LINK_ALL()
 
 void PumpMessageQueueProc()
 {
+    if(NeedsResolutionUpdate) {
+        CGSize size = renderSize;
+        float aspectratio = (float)size.width / (float)size.height;
+        pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
+        plMouseDevice::Instance()->SetDisplayResolution(size.width/renderScale, size.height/renderScale);
+        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
+        appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
+        NeedsResolutionUpdate = false;
+    }
 }
 
 int main(int argc, const char** argv)
