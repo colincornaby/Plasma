@@ -73,7 +73,6 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #if PLASMA_PIPELINE_METAL
     CAMetalLayer *layer = [CAMetalLayer layer];
     layer.contentsScale = [[NSScreen mainScreen] backingScaleFactor];
-    layer.device = layer.preferredDevice;
     layer.maximumDrawableCount = 3;
     self.layer = self.metalLayer = layer;
 #endif
