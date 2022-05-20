@@ -272,14 +272,37 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     
 #if PLASMA_PIPELINE_METAL
     plMetalPipeline *pipeline = (plMetalPipeline *)gClient->GetPipeline();
-    pipeline->currentDrawableCallback = [self] {
+    pipeline->currentDrawableCallback = [self] (MTL::Device* device) {
         id< CAMetalDrawable > drawable;
+        id<MTLDevice> metalDevice = (__bridge id<MTLDevice>)device;
+        if(((CAMetalLayer *) _renderLayer).device != metalDevice) {
+            ((CAMetalLayer *) _renderLayer).device = metalDevice;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self updateWindowTitle];
+            });
+        }
         drawable = [((CAMetalLayer *) _renderLayer) nextDrawable];
         CA::MetalDrawable * mtlDrawable = ( __bridge CA::MetalDrawable* ) drawable;
         mtlDrawable->retain();
         return mtlDrawable;
     };
     
+    if(!gClient) {
+        exit(0);
+    }
+    
+    self.eventMonitor = [[PLSKeyboardEventMonitor alloc] initWithView:self.window.contentView inputManager:&gClient];
+    ((PLSView *)self.window.contentView).inputManager = gClient->GetInputManager();
+
+    // Main loop
+    if (gClient && !gClient->GetDone())
+    {
+        [self startRunLoop];
+    }
+}
+
+- (void)updateWindowTitle
+{
     NSString *productTitle = [NSString stringWithCString:plProduct::LongName().c_str() encoding:NSUTF8StringEncoding];
     id<MTLDevice> device = ((CAMetalLayer *) self.window.contentView.layer).device;
 #ifdef HS_DEBUGGING
@@ -298,19 +321,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 #else
     [self.window setTitle:[NSString stringWithCString:plProduct::LongName().c_str() encoding:NSUTF8StringEncoding]];
 #endif
-    
-    if(!gClient) {
-        exit(0);
-    }
-    
-    self.eventMonitor = [[PLSKeyboardEventMonitor alloc] initWithView:self.window.contentView inputManager:&gClient];
-    ((PLSView *)self.window.contentView).inputManager = gClient->GetInputManager();
-
-    // Main loop
-    if (gClient && !gClient->GetDone())
-    {
-        [self startRunLoop];
-    }
 }
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
