@@ -406,6 +406,10 @@ void PumpMessageQueueProc()
 
 int main(int argc, const char** argv)
 {
+    struct rlimit limit;
+    getrlimit(RLIMIT_NOFILE, &limit);
+    limit.rlim_cur = 1024;
+    setrlimit(RLIMIT_NOFILE, &limit);
     
     PF_CONSOLE_INIT_ALL()
     
