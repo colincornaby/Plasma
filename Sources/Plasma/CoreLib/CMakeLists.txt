@@ -92,6 +92,7 @@ target_link_libraries(
         $<$<AND:$<CONFIG:Debug>,$<BOOL:${USE_VLD}>>:VLD::VLD>
     PRIVATE
         "$<$<PLATFORM_ID:Darwin>:-framework CoreFoundation>"
+        "$<$<PLATFORM_ID:Darwin>:-framework Cocoa>"
 )
 target_include_directories(
     CoreLib
@@ -100,10 +101,6 @@ target_include_directories(
     PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR} # For hsBuildInfo.inl
 )
-
-if(APPLE)
-    target_link_libraries(plClient PRIVATE "-framework Cocoa")
-endif()
 
 source_group("Source Files" FILES ${CoreLib_SOURCES})
 source_group("Header Files" FILES ${CoreLib_HEADERS})
