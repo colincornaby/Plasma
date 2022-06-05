@@ -101,6 +101,10 @@ target_include_directories(
         ${CMAKE_CURRENT_BINARY_DIR} # For hsBuildInfo.inl
 )
 
+if(APPLE)
+    target_link_libraries(plClient PRIVATE "-framework Cocoa")
+endif()
+
 source_group("Source Files" FILES ${CoreLib_SOURCES})
 source_group("Header Files" FILES ${CoreLib_HEADERS})
 
