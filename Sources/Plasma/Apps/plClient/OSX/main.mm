@@ -124,6 +124,8 @@ static const plCmdArgDef s_cmdLineArgs[] = {
     { kCmdArgFlagged  | kCmdTypeString,     "Renderer",        kArgRenderer },
 };
 
+plCmdParser cmdParser(s_cmdLineArgs, std::size(s_cmdLineArgs));
+
 @interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate> {
     @public plClientLoader gClient;
     
@@ -146,7 +148,8 @@ PF_CONSOLE_LINK_ALL()
     NSUInteger windowStyle =
     (NSWindowStyleMaskTitled  |
          NSWindowStyleMaskClosable |
-         NSWindowStyleMaskResizable);
+         NSWindowStyleMaskResizable |
+         NSWindowStyleMaskMiniaturizable);
     
     // Window bounds (x, y, width, height)
     NSRect windowRect = NSMakeRect(100, 100, 800, 600);
@@ -158,6 +161,7 @@ PF_CONSOLE_LINK_ALL()
     PLSView *view = [[PLSView alloc] init];
     self.plsView = view;
     window.contentView = view;
+    [window setDelegate:self];
     
     self = [super initWithWindow:window];
     self.window.acceptsMouseMovedEvents = YES;
@@ -227,6 +231,59 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 {
     gClient.Init();
     
+    plFileName serverIni = "server.ini";
+    if (cmdParser.IsSpecified(kArgServerIni))
+        serverIni = cmdParser.GetString(kArgServerIni);
+    
+    FILE *serverIniFile = plFileSystem::Open(serverIni, "rb");
+    if (serverIniFile)
+    {
+        fclose(serverIniFile);
+        pfConsoleEngine tempConsole;
+        tempConsole.ExecuteFile(serverIni);
+    }
+    else
+    {
+        hsMessageBox("No server.ini file found.  Please check your URU installation.", "Error", hsMessageBoxNormal);
+        return PARABLE_NORMAL_EXIT;
+    }
+    
+#ifndef PLASMA_EXTERNAL_RELEASE
+    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
+    //    doIntroDialogs = false;
+    if (cmdParser.IsSpecified(kArgLocalData))
+    {
+        gDataServerLocal = true;
+        gSkipPreload = true;
+    }
+    if (cmdParser.IsSpecified(kArgSkipPreload))
+        gSkipPreload = true;
+    if (cmdParser.IsSpecified(kArgPlayerId))
+        NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
+    if (cmdParser.IsSpecified(kArgStartUpAgeName))
+        NetCommSetIniStartUpAge(cmdParser.GetString(kArgStartUpAgeName));
+    
+    plPipeline::fInitialPipeParams.TextureQuality = 2;
+    //if (cmdParser.IsSpecified(kArgPvdFile))
+     //   plPXSimulation::SetDefaultDebuggerEndpoint(cmdParser.GetString(kArgPvdFile));
+    //if (cmdParser.IsSpecified(kArgRenderer))
+    //    gClient.SetRequestedRenderingBackend(ParseRendererArgument(cmdParser.GetString(kArgRenderer)));
+#endif
+    
+    // We should quite frankly be done initing the client by now. But, if not, spawn the good old
+    // "Starting URU, please wait..." dialog (not so yay)
+    while (!gClient.IsInited())
+    {
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate now]];
+        [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate now]];
+        [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate now]];
+    }
+    
+    if (!gClient || gClient->GetDone()) {
+        [NSApp terminate:self];
+        return;
+    }
+    
     PLSLoginWindowController *loginWindow = [[PLSLoginWindowController alloc] init];
     loginWindow.delegate = self;
     [loginWindow showWindow:self];
@@ -262,13 +319,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     
     gClient.SetClientWindow((hsWindowHndl)(__bridge void *)self.window);
     gClient.SetClientDisplay((hsWindowHndl)NULL);
-    
-    // We should quite frankly be done initing the client by now. But, if not, spawn the good old
-    // "Starting URU, please wait..." dialog (not so yay)
-    while (!gClient.IsInited())
-    {
-        [[NSRunLoop mainRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate now]];
-    }
     
 #if PLASMA_PIPELINE_METAL
     plMetalPipeline *pipeline = (plMetalPipeline *)gClient->GetPipeline();
@@ -329,9 +379,11 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     //Do any cleanup we need to do. If we need to we can ask for more time, but right now nothing in our implementation requires that.
     CVDisplayLinkStop(self.displayLink);
     @synchronized (_renderLayer) {
-        gClient.ShutdownStart();
-        gClient->MainLoop();
-        gClient.ShutdownEnd();
+        if (gClient) {
+            gClient.ShutdownStart();
+            gClient->MainLoop();
+            gClient.ShutdownEnd();
+        }
         NetCommShutdown();
     }
     return NSTerminateNow;
@@ -354,56 +406,19 @@ void PumpMessageQueueProc()
 
 int main(int argc, const char** argv)
 {
+    
     PF_CONSOLE_INIT_ALL()
-    [NSApplication sharedApplication];
-    [NSBundle.mainBundle loadNibNamed:@"MainMenu" owner:NSApp topLevelObjects:nil];
+    
     std::vector<ST::string> args;
     args.reserve(argc);
     for (size_t i = 0; i < argc; i++) {
         args.push_back(ST::string::from_utf8(argv[i]));
     }
-
-    plCmdParser cmdParser(s_cmdLineArgs, std::size(s_cmdLineArgs));
     cmdParser.Parse(args);
     
-    plFileName serverIni = "server.ini";
-    if (cmdParser.IsSpecified(kArgServerIni))
-        serverIni = cmdParser.GetString(kArgServerIni);
+    NSApplication *application = [NSApplication sharedApplication];
+    [NSBundle.mainBundle loadNibNamed:@"MainMenu" owner:NSApp topLevelObjects:nil];
     
-    FILE *serverIniFile = plFileSystem::Open(serverIni, "rb");
-    if (serverIniFile)
-    {
-        fclose(serverIniFile);
-        pfConsoleEngine tempConsole;
-        tempConsole.ExecuteFile(serverIni);
-    }
-    else
-    {
-        hsMessageBox("No server.ini file found.  Please check your URU installation.", "Error", hsMessageBoxNormal);
-        return PARABLE_NORMAL_EXIT;
-    }
-    
-#ifndef PLASMA_EXTERNAL_RELEASE
-    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
-    //    doIntroDialogs = false;
-    if (cmdParser.IsSpecified(kArgLocalData))
-    {
-        gDataServerLocal = true;
-        gSkipPreload = true;
-    }
-    if (cmdParser.IsSpecified(kArgSkipPreload))
-        gSkipPreload = true;
-    if (cmdParser.IsSpecified(kArgPlayerId))
-        NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
-    if (cmdParser.IsSpecified(kArgStartUpAgeName))
-        NetCommSetIniStartUpAge(cmdParser.GetString(kArgStartUpAgeName));
-    
-    plPipeline::fInitialPipeParams.TextureQuality = 2;
-    //if (cmdParser.IsSpecified(kArgPvdFile))
-     //   plPXSimulation::SetDefaultDebuggerEndpoint(cmdParser.GetString(kArgPvdFile));
-    //if (cmdParser.IsSpecified(kArgRenderer))
-    //    gClient.SetRequestedRenderingBackend(ParseRendererArgument(cmdParser.GetString(kArgRenderer)));
-#endif
     
     [NSApp run];
 }
