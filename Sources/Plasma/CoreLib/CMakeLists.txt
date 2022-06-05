@@ -35,6 +35,10 @@ else()
     message(FATAL_ERROR "The thread library CMake provided for your platform is not supported.")
 endif()
 
+if(APPLE)
+    list(APPEND CoreLib_SOURCES HeadSpin_Mac.mm)
+endif()
+
 set(CoreLib_HEADERS
     HeadSpin.h
     hsAlignedAllocator.hpp
