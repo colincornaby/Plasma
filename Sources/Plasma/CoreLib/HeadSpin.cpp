@@ -299,7 +299,7 @@ public:
 
 bool hsMessageBox_SuppressPrompts = false;
 
-#if not HS_BUILD_FOR_APPLE
+#ifndef HS_BUILD_FOR_APPLE
 int hsMessageBoxWithOwner(hsWindowHndl owner, const char* message, const char* caption, int kind, int icon)
 {
     if (hsMessageBox_SuppressPrompts)
