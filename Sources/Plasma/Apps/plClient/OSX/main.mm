@@ -389,6 +389,22 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     return NSTerminateNow;
 }
 
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+    [NSApp setPresentationOptions: NSApplicationPresentationFullScreen | NSApplicationPresentationHideDock | NSApplicationPresentationAutoHideMenuBar ];
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)notification
+{
+    [NSApp setPresentationOptions: NSApplicationPresentationDefault ];
+}
+
+- (NSApplicationPresentationOptions)window:(NSWindow *)window willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
+{
+    [NSApp setPresentationOptions: NSApplicationPresentationHideDock | NSApplicationPresentationAutoHideMenuBar ];
+    return NSApplicationPresentationFullScreen | NSApplicationPresentationHideDock | NSApplicationPresentationAutoHideMenuBar;
+}
+
 @end
 
 void PumpMessageQueueProc()
