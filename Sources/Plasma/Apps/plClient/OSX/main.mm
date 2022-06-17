@@ -87,7 +87,28 @@ bool NeedsResolutionUpdate = false;
 CGSize renderSize;
 CGFloat renderScale;
 
-void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) {}
+
+@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate> {
+    @public plClientLoader gClient;
+    dispatch_source_t _displaySource;
+}
+
+@property (retain) PLSKeyboardEventMonitor *eventMonitor;
+@property CVDisplayLinkRef displayLink;
+@property dispatch_queue_t renderQueue;
+@property CALayer* renderLayer;
+@property (weak) PLSView* plsView;
+
+@end
+
+void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
+        if(((appDelegate.window.styleMask & NSWindowStyleMaskFullScreen) > 0) == windowed) {
+            [appDelegate.window toggleFullScreen:nil];
+        }
+    });
+}
 void plClient::IChangeResolution(int width, int height) {}
 void plClient::IUpdateProgressIndicator(plOperationProgress* progress) {}
 void plClient::InitDLLs() {}
@@ -126,19 +147,6 @@ static const plCmdArgDef s_cmdLineArgs[] = {
 
 plCmdParser cmdParser(s_cmdLineArgs, std::size(s_cmdLineArgs));
 
-@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate> {
-    @public plClientLoader gClient;
-    
-}
-
-@property (retain) PLSKeyboardEventMonitor *eventMonitor;
-@property CVDisplayLinkRef displayLink;
-@property dispatch_queue_t renderQueue;
-@property CALayer* renderLayer;
-@property (weak) PLSView* plsView;
-
-@end
-
 @implementation AppDelegate
 PF_CONSOLE_LINK_ALL()
 
@@ -172,11 +180,14 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)startRunLoop {
     
+    [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
+    [self.plsView setBoundsSize:self.plsView.bounds.size];
+    
     dispatch_async(loadingQueue, ^{
+        [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
         gClient->WindowActivate(TRUE);
         gClient->SetMessagePumpProc(PumpMessageQueueProc);
         gClient.Start();
-        [self.plsView setBoundsSize:self.plsView.bounds.size];
     });
     
     dispatch_async(loadingQueue, ^{
@@ -196,14 +207,20 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         CVDisplayLinkStop(self.displayLink);
         CVDisplayLinkRelease(self.displayLink);
     }
-    CVDisplayLinkCreateWithCGDisplay([self.window.screen.deviceDescription[@"NSScreenNumber"] intValue], &_displayLink);
-    CVDisplayLinkSetOutputHandler(self.displayLink, ^CVReturn(CVDisplayLinkRef  _Nonnull displayLink, const CVTimeStamp * _Nonnull inNow, const CVTimeStamp * _Nonnull inOutputTime, CVOptionFlags flagsIn, CVOptionFlags * _Nonnull flagsOut) {
+    
+    _displaySource = dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, dispatch_get_main_queue());
+    __weak AppDelegate* weakSelf = self;
+    dispatch_source_set_event_handler(_displaySource, ^(){
         @autoreleasepool
         {
-            @synchronized (_renderLayer) {
-                [self runLoop];
-            }
+            [self runLoop];
         }
+    });
+    dispatch_resume(_displaySource);
+    
+    CVDisplayLinkCreateWithCGDisplay([self.window.screen.deviceDescription[@"NSScreenNumber"] intValue], &_displayLink);
+    CVDisplayLinkSetOutputHandler(self.displayLink, ^CVReturn(CVDisplayLinkRef  _Nonnull displayLink, const CVTimeStamp * _Nonnull inNow, const CVTimeStamp * _Nonnull inOutputTime, CVOptionFlags flagsIn, CVOptionFlags * _Nonnull flagsOut) {
+        dispatch_source_merge_data(_displaySource, 1);
         return kCVReturnSuccess;
     });
     CVDisplayLinkStart(self.displayLink);
@@ -214,17 +231,23 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     PumpMessageQueueProc();
 
     if (gClient->GetDone()) {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [NSApp terminate:self];
-        });
+        [NSApp terminate:self];
     }
 }
 
 - (void)renderView:(PLSView *)view didChangeOutputSize:(CGSize)size scale:(NSUInteger)scale
 {
-    NeedsResolutionUpdate = true;
-    renderSize = size;
-    renderScale = scale;
+    [[NSRunLoop mainRunLoop] performInModes:@[@"PlasmaEventMode"] block:^{
+        float aspectratio = (float)size.width / (float)size.height;
+        pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
+        plMouseDevice::Instance()->SetDisplayResolution(size.width/renderScale, size.height/renderScale);
+        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
+        appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
+        renderSize = size;
+        renderScale = scale;
+    }];
+    if(gClient->GetQuitIntro())
+        [self runLoop];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
@@ -274,9 +297,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     // "Starting URU, please wait..." dialog (not so yay)
     while (!gClient.IsInited())
     {
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate now]];
-        [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate now]];
-        [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate now]];
     }
     
     if (!gClient || gClient->GetDone()) {
@@ -336,6 +356,7 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         mtlDrawable->retain();
         return mtlDrawable;
     };
+#endif
     
     if(!gClient) {
         exit(0);
@@ -366,10 +387,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
                            device.name]];
 #else
     [self.window setTitle:productTitle];
-#endif
-    
-#else
-    [self.window setTitle:[NSString stringWithCString:plProduct::LongName().c_str() encoding:NSUTF8StringEncoding]];
 #endif
 }
 
@@ -409,14 +426,12 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 void PumpMessageQueueProc()
 {
-    if(NeedsResolutionUpdate) {
-        CGSize size = renderSize;
-        float aspectratio = (float)size.width / (float)size.height;
-        pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
-        plMouseDevice::Instance()->SetDisplayResolution(size.width/renderScale, size.height/renderScale);
-        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
-        appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
-        NeedsResolutionUpdate = false;
+    if(![NSThread isMainThread]) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [[NSRunLoop currentRunLoop] runMode:@"PlasmaEventMode" beforeDate:[NSDate date]];
+        });
+    } else {
+        [[NSRunLoop currentRunLoop] runMode:@"PlasmaEventMode" beforeDate:[NSDate date]];
     }
 }
 
