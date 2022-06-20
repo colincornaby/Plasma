@@ -230,9 +230,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 - (void)resizeDrawable:(CGFloat)scaleFactor
 {
-    CGSize newSize = self.bounds.size;
-    newSize.width *= scaleFactor;
-    newSize.height *= scaleFactor;
+    CGSize newSize = [self convertRectToBacking:self.bounds].size;
 
     if(newSize.width <= 0 || newSize.width <= 0)
     {
