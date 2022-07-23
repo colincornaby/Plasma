@@ -257,6 +257,8 @@ private:
     
     static plMetalEnumerate enumerator;
     
+    plTextFont*             fTextFontRefList;
+    
     NS::AutoreleasePool* fCurrentPool;
     
     struct plMetalPipelineCurrentState {
