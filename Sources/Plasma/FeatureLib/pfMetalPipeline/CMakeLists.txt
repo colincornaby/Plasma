@@ -8,6 +8,7 @@ set(pfMetalPipeline_SOURCES
     plMetalShader.cpp
     plMetalFragmentShader.cpp
     plMetalVertexShader.cpp
+    plMetalTextFont.cpp
     plMetalEnumerate.mm
 )
 
@@ -19,6 +20,7 @@ set(pfMetalPipeline_HEADERS
     plMetalPipelineState.h
     plMetalPlateManager.h
     plMetalShader.h
+    plMetalTextFont.h
     plMetalFragmentShader.h
     plMetalVertexShader.h
     ShaderSrc/ShaderTypes.h
