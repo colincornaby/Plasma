@@ -115,6 +115,10 @@ NSEventMaskFlagsChanged;
     return NO;
 }
 
+-(BOOL)isFunctionKey:(UInt16)keycode {
+    return (keycode >= 99 && keycode <= 113) || keycode == kVK_F4 || keycode == kVK_F2 || keycode == kVK_F1;
+}
+
 -(BOOL)processKeyEvent:(NSEvent *)event {
     NSEventModifierFlags modifierFlags = [event modifierFlags];
     //Don't intercept system key commands
@@ -144,7 +148,8 @@ NSEventMaskFlagsChanged;
      as "function keys". So we want to not trap events that are function key events, but we do want to trap the arrow keys.
      */
     //Edit 2: We also want to catch the function key modifier but not the actual function keys
-    if (!(keycode == kVK_LeftArrow || keycode == kVK_RightArrow || keycode == kVK_UpArrow || keycode == kVK_DownArrow || (keycode >= 99 && keycode <= 113)) &&  modifierFlags & NSEventModifierFlagFunction) {
+    if (!(keycode == kVK_LeftArrow || keycode == kVK_RightArrow || keycode == kVK_UpArrow || keycode == kVK_DownArrow || [self isFunctionKey:keycode]) &&  modifierFlags & NSEventModifierFlagFunction) {
+        NSLog(@"%i", keycode);
         return NO;
     }
     
