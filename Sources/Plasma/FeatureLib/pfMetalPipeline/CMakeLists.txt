@@ -10,6 +10,7 @@ set(pfMetalPipeline_SOURCES
     plMetalVertexShader.cpp
     plMetalTextFont.cpp
     plMetalEnumerate.mm
+    plMetalDevicePerformanceShaders.mm
 )
 
 set(pfMetalPipeline_HEADERS
