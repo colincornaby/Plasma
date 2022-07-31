@@ -157,6 +157,7 @@ if(APPLE)
     set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
+    target_link_libraries(plClient PRIVATE "-framework MetalPerformanceShaders")
     install(
         TARGETS plClient
         DESTINATION client
