@@ -208,6 +208,24 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     
     delete(pXMsg);
     delete(pYMsg);
+    
+    /*
+     For some reason the cusor has to get to the edge of the window before the
+     client will properly interpret us moving back to center. Guessing that the
+     large distance change triggers some condition in the client.
+     */
+    
+    if(self.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9) ) {
+        CGRect bounds = self.bounds;
+        CGPoint midPoint = CGPointMake(CGRectGetMidX(bounds), windowLocation.y);
+        CGWarpMouseCursorPosition([self convertPoint:midPoint toView:nil]);
+    }
+    
+    if(self.inputManager->RecenterMouse()  && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9) ) {
+        CGRect bounds = self.bounds;
+        CGPoint midPoint = CGPointMake(windowLocation.x, CGRectGetMidY(bounds));
+        CGWarpMouseCursorPosition([self convertPoint:midPoint toView:nil]);
+    }
 }
 
 - (void)viewDidChangeBackingProperties
