@@ -153,8 +153,13 @@ if(APPLE)
         MACOSX_BUNDLE_GUI_IDENTIFIER org.openuru.plClient
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon;
     )
     set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
+    target_sources(plClient PRIVATE OSX/Assets.xcassets)
+    set_source_files_properties(OSX/Assets.xcassets PROPERTIES
+         MACOSX_PACKAGE_LOCATION Resources
+    )
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
     target_link_libraries(plClient PRIVATE "-framework MetalPerformanceShaders")
