@@ -169,7 +169,7 @@ if(APPLE)
     )
     set (searchDirs
         "${CMAKE_PREFIX_PATH}/lib"
-        "${CMAKE_PREFIX_PATH}/mac64/physx/bin/mac64.xcode/release\}"
+        "${CMAKE_PREFIX_PATH}/mac64/physx/bin/mac64.xcode/release"
     )
     install(
         CODE "include(\"BundleUtilities\")
