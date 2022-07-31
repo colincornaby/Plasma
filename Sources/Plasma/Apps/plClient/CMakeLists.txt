@@ -181,6 +181,7 @@ if(APPLE)
     )
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
+    target_link_libraries(plClient PRIVATE "-framework MetalPerformanceShaders")
     install(
         TARGETS plClient
         DESTINATION client
