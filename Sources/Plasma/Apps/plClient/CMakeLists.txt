@@ -174,7 +174,9 @@ if(APPLE)
     )
     install(
         CODE "include(\"BundleUtilities\")
-            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/plClient.app\" \"\" \"${searchDirs}\")"
+            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/plClient.app\" \"\" \"${searchDirs}\" IGNORE_ITEM Python)
+            execute_process(COMMAND \"codesign\" \"--remove-signature\" \"--deep\" \"-f\" \"${CMAKE_INSTALL_PREFIX}/client/plClient.app\")
+            "
         DESTINATION client
     )
 else()
