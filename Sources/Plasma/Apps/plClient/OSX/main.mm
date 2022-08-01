@@ -252,8 +252,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
-    gClient.Init();
-    
     plFileName serverIni = "server.ini";
     if (cmdParser.IsSpecified(kArgServerIni))
         serverIni = cmdParser.GetString(kArgServerIni);
@@ -268,8 +266,10 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     else
     {
         hsMessageBox("No server.ini file found.  Please check your URU installation.", "Error", hsMessageBoxNormal);
-        return PARABLE_NORMAL_EXIT;
+        [NSApplication.sharedApplication terminate:nil];
     }
+    
+    gClient.Init();
     
 #ifndef PLASMA_EXTERNAL_RELEASE
     //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
@@ -324,6 +324,13 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     if([NSBundle mainBundle] && [NSBundle.mainBundle pathForResource:@"resource" ofType:@"dat"]) {
         //if we're a proper app bundle, start the game using our resources dir
         chdir([[[NSBundle mainBundle] resourcePath] cStringUsingEncoding:NSUTF8StringEncoding]);
+    } else if([NSBundle mainBundle] != nil) {
+        NSString *currentPath = [[NSBundle mainBundle] bundlePath];
+        //if our working path is inside our bundle - get out and
+        //point it to the containing folder
+        if([currentPath isEqualToString:NSProcessInfo.processInfo.arguments[0]]) {
+            chdir([[currentPath stringByDeletingLastPathComponent] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
     }
     // Create a window:
 
