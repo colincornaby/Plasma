@@ -172,13 +172,6 @@ if(APPLE)
         "${CMAKE_PREFIX_PATH}/usr/local/lib"
         "${CMAKE_PREFIX_PATH}/mac64/physx/bin/mac64.xcode/release"
     )
-    install(
-        CODE "include(\"BundleUtilities\")
-            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/plClient.app\" \"\" \"${searchDirs}\" IGNORE_ITEM Python)
-            execute_process(COMMAND \"codesign\" \"--remove-signature\" \"--deep\" \"-f\" \"${CMAKE_INSTALL_PREFIX}/client/plClient.app\")
-            "
-        DESTINATION client
-    )
 else()
     plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
         SOURCES
@@ -254,6 +247,20 @@ target_include_directories(plClient PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 if(PLASMA_EXTERNAL_RELEASE)
     set_target_properties(plClient PROPERTIES OUTPUT_NAME "UruExplorer")
 endif(PLASMA_EXTERNAL_RELEASE)
+
+if(APPLE)
+    get_target_property(OUTPUT_NAME plClient OUTPUT_NAME)
+    if(OUTPUT_NAME MATCHES "OUTPUT_NAME-NOTFOUND")
+        get_target_property(OUTPUT_NAME plClient NAME)
+    endif()
+    install(
+        CODE "include(\"BundleUtilities\")
+            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/${OUTPUT_NAME}.app\" \"\" \"${searchDirs}\" IGNORE_ITEM Python)
+            execute_process(COMMAND \"codesign\" \"--remove-signature\" \"--deep\" \"-f\" \"${CMAKE_INSTALL_PREFIX}/client/${OUTPUT_NAME}.app\")
+            "
+        DESTINATION client
+    )
+endif()
 
 if(PLASMA_BUILD_RESOURCE_DAT)
     source_group("Client Resource Scripts" FILES ${external_SCRIPTS})
