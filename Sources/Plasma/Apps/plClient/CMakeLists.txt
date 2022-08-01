@@ -148,7 +148,6 @@ if(APPLE)
     set(MAIN_NIBFILE "MainMenu")           
     set_target_properties(plClient PROPERTIES
         BUNDLE True
-        RESOURCE "${RESOURCES}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/OSX/Info.plist.in"
         MACOSX_BUNDLE_GUI_IDENTIFIER org.openuru.plClient
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
@@ -157,7 +156,7 @@ if(APPLE)
     )
     set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
     target_sources(plClient PRIVATE OSX/Assets.xcassets)
-    set_source_files_properties(OSX/Assets.xcassets PROPERTIES
+    set_source_files_properties(OSX/Assets.xcassets ${RESOURCES} PROPERTIES
          MACOSX_PACKAGE_LOCATION Resources
     )
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
