@@ -252,6 +252,18 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+    if([NSBundle mainBundle] && [NSBundle.mainBundle pathForResource:@"resource" ofType:@"dat"]) {
+        //if we're a proper app bundle, start the game using our resources dir
+        chdir([[[NSBundle mainBundle] resourcePath] cStringUsingEncoding:NSUTF8StringEncoding]);
+    } else if([NSBundle mainBundle] != nil) {
+        NSString *currentPath = [[NSBundle mainBundle] bundlePath];
+        //if our working path is inside our bundle - get out and
+        //point it to the containing folder
+        if([[[NSFileManager defaultManager] currentDirectoryPath] isEqualToString:@"/"]) {
+            chdir([[currentPath stringByDeletingLastPathComponent] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
+    }
+    
     plFileName serverIni = "server.ini";
     if (cmdParser.IsSpecified(kArgServerIni))
         serverIni = cmdParser.GetString(kArgServerIni);
@@ -320,18 +332,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     PF_CONSOLE_INITIALIZE(Audio)
     
     self.plsView.delegate = self;
-    
-    if([NSBundle mainBundle] && [NSBundle.mainBundle pathForResource:@"resource" ofType:@"dat"]) {
-        //if we're a proper app bundle, start the game using our resources dir
-        chdir([[[NSBundle mainBundle] resourcePath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    } else if([NSBundle mainBundle] != nil) {
-        NSString *currentPath = [[NSBundle mainBundle] bundlePath];
-        //if our working path is inside our bundle - get out and
-        //point it to the containing folder
-        if([currentPath isEqualToString:NSProcessInfo.processInfo.arguments[0]]) {
-            chdir([[currentPath stringByDeletingLastPathComponent] cStringUsingEncoding:NSUTF8StringEncoding]);
-        }
-    }
     // Create a window:
 
     // Window controller
