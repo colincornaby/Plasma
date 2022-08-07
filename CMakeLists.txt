@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING "")
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14)
 
 # CMake 3.22 changes cmake_dependent_option from doing `if(${CONDITION})` to actually evaulating
 # The cmake code `if(<condition>)` using cmake_language(EVAL). That's a breaking change that warns
