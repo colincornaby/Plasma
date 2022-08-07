@@ -102,6 +102,7 @@ NSEventMaskFlagsChanged;
             case NSEventTypeFlagsChanged: {
                 if(self.gClient->GetQuitIntro() == false) {
                     self.gClient->SetQuitIntro(true);
+                    return true;
                 } else {
                     return [self processKeyEvent:event];
                 }
