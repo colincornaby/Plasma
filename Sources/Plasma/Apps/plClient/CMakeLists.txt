@@ -96,15 +96,22 @@ elseif(APPLE)
         OSX/PLSKeyboardEventMonitor.mm
         OSX/PLSView.mm
         OSX/PLSLoginWindowController.mm
+        OSX/PLSPatcherWindowController.mm
+        OSX/PLSPatcher.mm
+        OSX/PLSServerStatus.mm
     )
     set(plClient_HEADERS ${plClient_HEADERS}
         OSX/PLSKeyboardEventMonitor.h
         OSX/PLSView.h
         OSX/PLSLoginWindowController.h
+        OSX/PLSPatcherWindowController.h
+        OSX/PLSPatcher.h
+        OSX/PLSServerStatus.h
     )
     set(RESOURCES 
         OSX/MainMenu.xib
         OSX/PLSLoginWindowController.xib
+        OSX/PLSPatcherWindowController.xib
         OSX/banner@2x.jpeg
         win32/res/Dirt.ICO
     )
