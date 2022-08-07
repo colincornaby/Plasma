@@ -60,8 +60,10 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "plInputCore/plInputDevice.h"
 #include "plNetClient/plNetClientMgr.h"
 #include "plNetGameLib/plNetGameLib.h"
+#include "PLSPatcherWindowController.h"
 
 #include "PLSLoginWindowController.h"
+#include "PLSServerStatus.h"
 
 #import "Cocoa/Cocoa.h"
 #if PLASMA_PIPELINE_GL
@@ -87,8 +89,9 @@ bool NeedsResolutionUpdate = false;
 CGSize renderSize;
 CGFloat renderScale;
 
+std::vector<ST::string> args;
 
-@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate> {
+@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate, PLSPatcherDelegate> {
     @public plClientLoader gClient;
     dispatch_source_t _displaySource;
 }
@@ -98,6 +101,10 @@ CGFloat renderScale;
 @property dispatch_queue_t renderQueue;
 @property CALayer* renderLayer;
 @property (weak) PLSView* plsView;
+@property PLSPatcherWindowController *patcherWindow;
+@property NSModalSession currentModalSession;
+@property PLSPatcher *patcher;
+@property PLSLoginWindowController *loginWindow;
 
 @end
 
@@ -252,6 +259,8 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+    cmdParser.Parse(args);
+    
     if([NSBundle mainBundle] && [NSBundle.mainBundle pathForResource:@"resource" ofType:@"dat"]) {
         //if we're a proper app bundle, start the game using our resources dir
         chdir([[[NSBundle mainBundle] resourcePath] cStringUsingEncoding:NSUTF8StringEncoding]);
@@ -281,11 +290,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         [NSApplication.sharedApplication terminate:nil];
     }
     
-    gClient.Init();
-    
-#ifndef PLASMA_EXTERNAL_RELEASE
-    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
-    //    doIntroDialogs = false;
     if (cmdParser.IsSpecified(kArgLocalData))
     {
         gDataServerLocal = true;
@@ -293,6 +297,31 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     }
     if (cmdParser.IsSpecified(kArgSkipPreload))
         gSkipPreload = true;
+    
+    NetCommStartup();
+    NetCommConnect();
+    [[PLSServerStatus sharedStatus] loadServerStatus];
+    
+    [self prepatch];
+}
+
+- (void) prepatch {
+    self.patcherWindow = [[PLSPatcherWindowController alloc] initWithWindowNibName:@"PLSPatcherWindowController"];
+    self.patcher = [PLSPatcher new];
+    self.patcher.delegate = self;
+    
+    self.currentModalSession = [NSApp beginModalSessionForWindow:self.patcherWindow.window];
+    [NSApp runModalSession:self.currentModalSession];
+    [self.patcherWindow.window center];
+    [self.patcher start];
+}
+
+- (void) initializeClient {
+    gClient.Init();
+    
+#ifndef PLASMA_EXTERNAL_RELEASE
+    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
+    //    doIntroDialogs = false;
     if (cmdParser.IsSpecified(kArgPlayerId))
         NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
     if (cmdParser.IsSpecified(kArgStartUpAgeName))
@@ -316,10 +345,37 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         return;
     }
     
-    PLSLoginWindowController *loginWindow = [[PLSLoginWindowController alloc] init];
-    loginWindow.delegate = self;
-    [loginWindow showWindow:self];
-    [loginWindow.window makeKeyAndOrderFront:self];
+    self.loginWindow = [[PLSLoginWindowController alloc] init];
+    self.loginWindow.delegate = self;
+    [self.loginWindow showWindow:self];
+    [self.loginWindow.window makeKeyAndOrderFront:self];
+}
+
+- (void)patcher:(PLSPatcher *)patcher beganDownloadOfFile:(NSString *)file
+{
+    [self.patcherWindow patcher:patcher beganDownloadOfFile:file];
+}
+
+- (void)patcherCompleted:(PLSPatcher *)patcher
+{
+    self.patcher = nil;
+    [NSApp endModalSession:self.currentModalSession];
+    [self.patcherWindow.window close];
+    [self initializeClient];
+}
+
+- (void)patcherCompletedWithError:(PLSPatcher *)patcher error:(NSError *)error
+{
+    NSAlert *failureAlert = [NSAlert alertWithError:error];
+    [failureAlert beginSheetModalForWindow:self.patcherWindow.window completionHandler:^(NSModalResponse returnCode) {
+        
+    }];
+    [NSApp terminate:self];
+}
+
+- (void)patcher:(PLSPatcher *)patcher updatedProgress:(NSString *)progressMessage withBytes:(NSUInteger)bytes outOf:(uint64_t)totalBytes
+{
+    [self.patcherWindow patcher:patcher updatedProgress:progressMessage withBytes:bytes outOf:totalBytes];
 }
 
 - (void)loginWindowControllerDidLogin:(PLSLoginWindowController *)sender
@@ -371,7 +427,8 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     
     self.eventMonitor = [[PLSKeyboardEventMonitor alloc] initWithView:self.window.contentView inputManager:&gClient];
     ((PLSView *)self.window.contentView).inputManager = gClient->GetInputManager();
-
+    [self.window makeFirstResponder:self.window.contentView];
+    
     // Main loop
     if (gClient && !gClient->GetDone())
     {
@@ -450,17 +507,10 @@ int main(int argc, const char** argv)
     setrlimit(RLIMIT_NOFILE, &limit);
     
     PF_CONSOLE_INIT_ALL()
-    
-    std::vector<ST::string> args;
     args.reserve(argc);
     for (size_t i = 0; i < argc; i++) {
         args.push_back(ST::string::from_utf8(argv[i]));
     }
-    cmdParser.Parse(args);
     
-    NSApplication *application = [NSApplication sharedApplication];
-    [NSBundle.mainBundle loadNibNamed:@"MainMenu" owner:NSApp topLevelObjects:nil];
-    
-    
-    [NSApp run];
+    return NSApplicationMain(argc, argv);
 }
