@@ -40,18 +40,17 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 *==LICENSE==*/
 
-#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@class PLSLoginWindowController;
+@interface PLSServerStatus : NSObject
 
-@protocol PLSLoginWindowControllerDelegate <NSObject>
--(void)loginWindowControllerDidLogin:(PLSLoginWindowController *)sender;
-@end
+@property (readonly, nullable) NSString * serverStatusString;
 
-@interface PLSLoginWindowController : NSWindowController
-@property (weak) id<PLSLoginWindowControllerDelegate> delegate;
++(id)sharedStatus;
+-(void)loadServerStatus;
+
 @end
 
 NS_ASSUME_NONNULL_END

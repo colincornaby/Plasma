@@ -41,17 +41,22 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 *==LICENSE==*/
 
 #import <Cocoa/Cocoa.h>
+#import "PLSPatcher.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@class PLSLoginWindowController;
+@interface PLSPatcherWindowController : NSWindowController <PLSPatcherDelegate>
 
-@protocol PLSLoginWindowControllerDelegate <NSObject>
--(void)loginWindowControllerDidLogin:(PLSLoginWindowController *)sender;
-@end
+@property (readonly) PLSPatcher *patcher;
 
-@interface PLSLoginWindowController : NSWindowController
-@property (weak) id<PLSLoginWindowControllerDelegate> delegate;
+@property (assign) IBOutlet NSProgressIndicator *progressBar;
+@property (assign) IBOutlet NSTextField *statusLabel;
+@property (assign) IBOutlet NSTextField *detailStatusLabel;
+@property (assign) IBOutlet NSTextField *progressLabel;
+@property (assign) IBOutlet NSTextField *productLabel;
+@property (assign) IBOutlet NSTextField *serverStatusLabel;
+- (IBAction)cancelButtonHit:(id)sender;
+
 @end
 
 NS_ASSUME_NONNULL_END
