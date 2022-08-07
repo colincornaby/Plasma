@@ -98,6 +98,7 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 - (void)windowDidLoad {
     [super windowDidLoad];
     
+    [self.progressBar startAnimation:self];
     self.productLabel.stringValue = [NSString stringWithUTF8String:plProduct::ProductString().c_str()];
     //register for an async notification of when status loads
     [[PLSServerStatus sharedStatus] addObserver:self forKeyPath:@"serverStatusString" options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial context:StatusTextDidChangeContext];
