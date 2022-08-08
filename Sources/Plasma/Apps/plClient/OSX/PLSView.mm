@@ -216,16 +216,23 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
      large distance change triggers some condition in the client.
      */
     
-    if(self.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9) ) {
-        CGRect bounds = self.bounds;
-        CGPoint midPoint = CGPointMake(CGRectGetMidX(bounds), windowLocation.y);
-        CGWarpMouseCursorPosition([self convertPoint:midPoint toView:nil]);
-    }
-    
-    if(self.inputManager->RecenterMouse()  && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9) ) {
-        CGRect bounds = self.bounds;
-        CGPoint midPoint = CGPointMake(windowLocation.x, CGRectGetMidY(bounds));
-        CGWarpMouseCursorPosition([self convertPoint:midPoint toView:nil]);
+    if(self.inputManager->RecenterMouse()) {
+        CGPoint warpPoint = [self.window convertPointToScreen:windowLocation];
+        CGPoint newWindowLocation = windowLocation;
+        
+        if(self.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9) ) {
+            newWindowLocation.x =  CGRectGetMidX(self.window.contentView.bounds);
+        }
+        
+        if(self.inputManager->RecenterMouse()  && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9) ) {
+            newWindowLocation.y = CGRectGetMidY(self.window.contentView.bounds);
+        }
+        
+        if(!CGPointEqualToPoint(newWindowLocation, windowLocation)) {
+            warpPoint = [self.window convertPointToScreen:newWindowLocation];
+            warpPoint.y = [[NSScreen screens][0] frame].size.height - warpPoint.y;
+            CGWarpMouseCursorPosition(warpPoint);
+        }
     }
 }
 
