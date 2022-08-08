@@ -211,7 +211,8 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
     if(result == kNetSuccess) {
         [self.delegate loginWindowControllerDidLogin:self];
     } else {
-        NetCommDisconnect();
+        //In the future - disconnect on cancel
+        //NetCommDisconnect();
         NSAlert *loginFailedAlert = [[NSAlert alloc] init];
         loginFailedAlert.messageText = @"Authentication Failed";
         loginFailedAlert.informativeText = @"Please try again.";
