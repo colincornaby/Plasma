@@ -110,14 +110,23 @@ std::vector<ST::string> args;
 @end
 
 void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
-        if(((appDelegate.window.styleMask & NSWindowStyleMaskFullScreen) > 0) == windowed) {
-            [appDelegate.window toggleFullScreen:nil];
-        }
-        auto* msg = new plDisplayScaleChangedMsg(appDelegate.window.backingScaleFactor);
-        msg->Send();
-    });
+    if([NSThread currentThread] != [NSThread mainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            IResizeNativeDisplayDevice(width, height, windowed);
+        });
+        return;
+    }
+    AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
+    if(((appDelegate.window.styleMask & NSWindowStyleMaskFullScreen) > 0) == windowed) {
+        [appDelegate.window toggleFullScreen:nil];
+    }
+    CAMetalLayer *renderLayer = (CAMetalLayer *)appDelegate.renderLayer;
+    renderLayer.drawableSize = CGSizeMake(width, height);
+    NSSize backingSize = [appDelegate.window convertRectToBacking:appDelegate.plsView.frame].size;
+    plMouseDevice::Instance()->SetDisplayScale(appDelegate.window.screen.backingScaleFactor * (width/backingSize.width));
+    
+    auto* msg = new plDisplayScaleChangedMsg(appDelegate.window.backingScaleFactor);
+    msg->Send();
 }
 void plClient::IChangeResolution(int width, int height) {}
 void plClient::IUpdateProgressIndicator(plOperationProgress* progress) {}
@@ -252,15 +261,20 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)renderView:(PLSView *)view didChangeOutputSize:(CGSize)size scale:(NSUInteger)scale
 {
-    [[NSRunLoop mainRunLoop] performInModes:@[@"PlasmaEventMode"] block:^{
-        auto* msg = new plDisplayScaleChangedMsg(scale);
-        msg->Send();
-        float aspectratio = (float)size.width / (float)size.height;
-        pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
-        plMouseDevice::Instance()->SetDisplayResolution(size.width, size.height);
-        AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
-        appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
-    }];
+    // float resScale = gClient->GetPipeline()->fInitialPipeParams.ResScale;
+    CGSize outputSize = size;
+    //outputSize.width *= (resScale / 100.0f);
+    //outputSize.height *= (resScale / 100.0f);
+    
+    float aspectratio = (float)outputSize.width / (float)outputSize.height;
+    /*pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
+    plMouseDevice::Instance()->SetDisplayResolution(outputSize.width/renderScale, outputSize.height/renderScale);
+    gClient->GetPipeline()->Resize((int)outputSize.width, (int)outputSize.height);*/
+    printf("Setting based on: %f\n", outputSize.width);
+    gClient->SetDisplayOptions(outputSize.width, outputSize.height, !(self.window.styleMask & NSWindowStyleMaskFullScreen));
+    uint32_t setWidth = gClient->GetPipeline()->Width();
+    auto* msg = new plDisplayScaleChangedMsg(scale);
+    msg->Send();
     if(gClient->GetQuitIntro())
         [self runLoop];
 }
@@ -351,6 +365,9 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 }
 
 - (void) initializeClient {
+    
+    gClient.SetClientWindow((hsWindowHndl)(__bridge void *)self.window);
+    gClient.SetClientDisplay((hsWindowHndl)NULL);
     gClient.Init();
     
     // We should quite frankly be done initing the client by now. But, if not, spawn the good old
@@ -430,9 +447,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     [self.window center];
     [self.window makeKeyAndOrderFront:self];
     self.renderLayer = self.window.contentView.layer;
-    
-    gClient.SetClientWindow((hsWindowHndl)(__bridge void *)self.window);
-    gClient.SetClientDisplay((hsWindowHndl)NULL);
     
 #if PLASMA_PIPELINE_METAL
     plMetalPipeline *pipeline = (plMetalPipeline *)gClient->GetPipeline();

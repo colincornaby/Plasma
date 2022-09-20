@@ -448,6 +448,7 @@ gStayInFirstPerson = "0"
 gClickToTurn = "0"
 gAudioHack = 0
 gCurrentReleaseNotes = "Welcome to Myst Online: Uru Live!"
+gMaxVideoWidth = 0
 
 class xOptionsMenu(ptModifier):
     "The Options dialog modifier"
@@ -1526,6 +1527,7 @@ class xOptionsMenu(ptModifier):
         self.SetVidResField(vidRes)
 
     def InitVideoControlsGUI(self):
+        global gMaxVideoWidth
         xIniDisplay.ReadIni()
         opts = xIniDisplay.GetGraphicsOptions()
 
@@ -1579,7 +1581,10 @@ class xOptionsMenu(ptModifier):
 
         if not vidRes in vidResList:
             vidRes = vidResList[numRes-1]
-
+        
+        gMaxVideoWidth = int(vidResList[numRes-1].split("x")[0])
+        print("Largest video width is " + str(gMaxVideoWidth))
+        
         for res in range(numRes):
             if vidRes == vidResList[res]:
                 if numRes > 1:
@@ -1684,8 +1689,9 @@ class xOptionsMenu(ptModifier):
 
         gammaField = ptGUIControlKnob(GraphicsSettingsDlg.dialog.getControlFromTag(kGSDisplayGammaSlider))
         gamma = gammaField.getValue()
-
-        xIniDisplay.SetGraphicsOptions(width, height, colordepth, windowed, tex_quality, antialias, aniso, quality, shadowsstr, vsyncstr, shadow_quality)
+        resolutionScale = int(round((width / gMaxVideoWidth) * 100))
+        
+        xIniDisplay.SetGraphicsOptions(width, height, colordepth, windowed, tex_quality, antialias, aniso, quality, shadowsstr, vsyncstr, shadow_quality, resolutionScale)
         xIniDisplay.WriteIni()
         self.setNewChronicleVar("gamma", gamma)
 

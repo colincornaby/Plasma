@@ -52,6 +52,7 @@ endif(UNIX)
 if(APPLE)
     add_definitions(-DHS_BUILD_FOR_APPLE)
     set(CMAKE_XCODE_GENERATE_SCHEME FALSE)
+    set(PLASMA_DISPLAY_INDEPENDENT_VIDEO_MODES ON)
 
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
         add_definitions(-DHS_BUILD_FOR_MACOS)
@@ -155,6 +156,10 @@ endif(PLASMA_PIPELINE_GL)
 if(PLASMA_PIPELINE_METAL)
     add_definitions(-DPLASMA_PIPELINE_METAL)
 endif()
+
+if(PLASMA_DISPLAY_INDEPENDENT_VIDEO_MODES)
+    add_definitions(-DPLASMA_DISPLAY_INDEPENDENT_VIDEO_MODES)
+endif(PLASMA_DISPLAY_INDEPENDENT_VIDEO_MODES)
 
 # Allow us to disable certain parts of the build
 option(PLASMA_BUILD_CLIENT "Do we want to build plClient?" ON)

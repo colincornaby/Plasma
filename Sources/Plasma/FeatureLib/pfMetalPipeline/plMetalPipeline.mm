@@ -42,6 +42,13 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "HeadSpin.h"
 #include <string_theory/format>
 
+
+
+#ifdef HS_BUILD_FOR_MACOS
+#include <Foundation/Foundation.h>
+#include <AppKit/AppKit.h>
+#endif
+
 #include <Metal/Metal.hpp>
 #import <simd/simd.h>
 
@@ -169,6 +176,8 @@ plMetalPipeline::plMetalPipeline(hsWindowHndl display, hsWindowHndl window, cons
     fIdxBuffRefList = nullptr;
     fMatRefList = nullptr;
     fTextFontRefList = nullptr;
+    
+    fDevice.fWindow = window;
     
     fCurrLayerIdx = 0;
     fDevice.fPipeline = this;
@@ -960,25 +969,31 @@ plMipmap *plMetalPipeline::ExtractMipMap(plRenderTarget *targ)
 
 void plMetalPipeline::GetSupportedDisplayModes(std::vector<plDisplayMode> *res, int ColorDepth)
 {
-    /*
-     There are decisions to make here.
-     
-     Modern macOS does not support "display modes." You panel runs at native resolution at all times, and you can over-render or under-render. But you never set the display mode of the panel, or get the display mode of the panel. Most games have a "scale slider."
-     
-     Note: There are legacy APIs for display modes for compatibility with older software. In since we're here writing a new renderer, lets do things the right way. The display mode APIs also have trouble with density. I.E. a 4k display might be reported as a 2k display if the window manager is running in a higher DPI mode.
-     
-     The basic approach should be to render at whatever the resolution of our output surface is. We're mostly doing that now (aspect ratio doesn't adjust.)
-     
-     Ideally we should support some sort of scaling/semi dynamic renderbuffer resolution thing. But don't mess with the window servers framebuffer size. macOS has accelerated resolution scaling like consoles do. Use that.
-     */
-    
     std::vector<plDisplayMode> supported;
-    plDisplayMode mode;
-    mode.Width = 800;
-    mode.Height = 600;
-    mode.ColorDepth = 32;
-    supported.push_back(mode);
+    // loop through display modes
+#ifdef HS_BUILD_FOR_MACOS
+    NSWindow *window = (NSWindow*)fDevice.fWindow;
+    NSSize backingSize = [window convertRectToBacking:window.contentView.frame].size;
     
+    NSSize screenSize = [window.screen convertRectToBacking:window.screen.frame].size;
+    fDesktopParams.Width = screenSize.width;
+    fDesktopParams.Height = screenSize.height;
+    printf("Offering based on: %f\n", backingSize.width);
+    
+    double scale = 1.0;
+    while(scale>0.3)
+    {
+        plDisplayMode mode;
+        double correctedScale = round(scale * 100) / 100.0;
+        mode.Width = backingSize.width * correctedScale;
+        mode.Height = backingSize.height * correctedScale;
+        mode.ColorDepth = ColorDepth;
+        supported.push_back(mode);
+        scale -= 0.05;
+    }
+#else
+    hsError("Display modes only supported on macOS");
+#endif
     *res = supported;
 }
 
@@ -1006,8 +1021,7 @@ int plMetalPipeline::GetMaxAntiAlias(int Width, int Height, int ColorDepth)
 
 void plMetalPipeline::ResetDisplayDevice(int Width, int Height, int ColorDepth, bool Windowed, int NumAASamples, int MaxAnisotropicSamples, bool vSync)
 {
-    //FIXME: Whats this?
-    //Seems like an entry point for passing in display settings.
+    Resize(Width, Height);
     
     fDevice.SetMaxAnsiotropy(MaxAnisotropicSamples);
 }

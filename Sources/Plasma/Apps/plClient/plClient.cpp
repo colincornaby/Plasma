@@ -158,7 +158,6 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "pfPython/cyMisc.h"
 #include "pfPython/cyPythonInterface.h"
 
-
 #define MSG_LOADING_BAR
 
 // static hsVector3 gAbsDown(0,0,-1.f);
@@ -229,6 +228,7 @@ plClient::~plClient()
     plClient::SetInstance(nullptr);
 
     delete fPageMgr;
+    delete fGraphicsIni;
 }
 
 template<typename T>
@@ -457,6 +457,7 @@ bool plClient::InitPipeline(hsWindowHndl display, uint32_t devType)
 
     hsG3DDeviceRecord *rec = (hsG3DDeviceRecord *)dmr.GetDevice();
 
+#if !PLASMA_DISPLAY_INDEPENDENT_VIDEO_MODES
     if(!plPipeline::fInitialPipeParams.Windowed)
     {
         // find our resolution if we're not in windowed mode
@@ -481,6 +482,7 @@ bool plClient::InitPipeline(hsWindowHndl display, uint32_t devType)
             ISetGraphicsDefaults();
         }
     }
+#endif
 
     if(plPipeline::fInitialPipeParams.TextureQuality == -1)
     {
@@ -1958,6 +1960,47 @@ void plClient::ResizeDisplayDevice(int Width, int Height, bool Windowed)
     IResizeNativeDisplayDevice(Width, Height, Windowed);
 }
 
+void plClient::SetDisplayOptions(int Width, int Height, bool Windowed)
+{
+    fGraphicsIni->readFile();
+    std::shared_ptr<hsIniEntry> entry = fGraphicsIni->findByCommand("Graphics.Windowed");
+    if (entry) {
+        entry->setValue(0, Windowed ? "true" : "false");
+    }
+    
+    entry = fGraphicsIni->findByCommand("Graphics.OutputScale");
+    if (entry) {
+        double scale = entry->getValue(0)->to_uint() / 100.0;
+        Width *= scale;
+        Height *= scale;
+    }
+    
+    entry = fGraphicsIni->findByCommand("Graphics.Width");
+    if (entry) {
+        entry->setValue(0, std::to_string(Width));
+    }
+    entry = fGraphicsIni->findByCommand("Graphics.Height");
+    if (entry) {
+        entry->setValue(0, std::to_string(Height));
+    }
+    fGraphicsIni->writeFile();
+    
+    FlushGraphicsOptions();
+}
+
+void plClient::FlushGraphicsOptions()
+{
+    int Width = fGraphicsIni->findByCommand("Graphics.Width")->getValue(0)->to_int();
+    int Height = fGraphicsIni->findByCommand("Graphics.Height")->getValue(0)->to_int();
+    int ColorDepth = fGraphicsIni->findByCommand("Graphics.ColorDepth")->getValue(0)->to_int();
+    int NumAASamples = fGraphicsIni->findByCommand("Graphics.AntiAliasAmount")->getValue(0)->to_int();
+    int MaxAnisotropicSamples = fGraphicsIni->findByCommand("Graphics.AnisotropicLevel")->getValue(0)->to_int();
+    bool VSync = (fGraphicsIni->findByCommand("Graphics.EnableVSync")->getValue(0) == "true");
+    bool Windowed = (fGraphicsIni->findByCommand("Graphics.Windowed")->getValue(0) == "true");
+    
+    ResetDisplayDevice(Width, Height, ColorDepth, Windowed, NumAASamples, MaxAnisotropicSamples);
+}
+
 void WriteBool(hsStream *stream, const char *name, bool on )
 {
     char command[256];
@@ -2056,6 +2099,8 @@ void plClient::IDetectAudioVideoSettings()
         s.Close();
     else
         IWriteDefaultGraphicsSettings(graphicsIniFile);
+    
+    fGraphicsIni = new hsIniFile(graphicsIniFile);
 }
 
 void plClient::IWriteDefaultAudioSettings(const plFileName& destFile)

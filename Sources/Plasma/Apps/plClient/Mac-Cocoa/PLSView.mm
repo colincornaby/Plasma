@@ -277,8 +277,6 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     {
         return;
     }
-
-    _metalLayer.drawableSize = newSize;
 #endif
     [self.delegate renderView:self didChangeOutputSize:newSize scale:scaleFactor];
 }

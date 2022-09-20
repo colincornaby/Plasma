@@ -2,7 +2,7 @@ set(pfMetalPipeline_SOURCES
     plMetalDevice.cpp
     plMetalDeviceRefs.cpp
     plMetalMaterialShaderRef.cpp
-    plMetalPipeline.cpp
+    plMetalPipeline.mm
     plMetalPipelineState.cpp
     plMetalPlateManager.cpp
     plMetalShader.cpp
