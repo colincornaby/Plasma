@@ -74,6 +74,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     CAMetalLayer *layer = [CAMetalLayer layer];
     layer.contentsScale = [[NSScreen mainScreen] backingScaleFactor];
     layer.maximumDrawableCount = 3;
+    layer.pixelFormat = MTLPixelFormatBGR10A2Unorm;
     self.layer = self.metalLayer = layer;
 #endif
     self.layer.backgroundColor = NSColor.blackColor.CGColor;
