@@ -123,8 +123,6 @@ void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) 
     CAMetalLayer *renderLayer = (CAMetalLayer *)appDelegate.renderLayer;
     renderLayer.drawableSize = CGSizeMake(width, height);
     NSSize backingSize = [appDelegate.window convertRectToBacking:appDelegate.plsView.frame].size;
-    plMouseDevice::Instance()->SetDisplayScale(appDelegate.window.screen.backingScaleFactor * (width/backingSize.width));
-    
     auto* msg = new plDisplayScaleChangedMsg(appDelegate.window.backingScaleFactor);
     msg->Send();
 }
