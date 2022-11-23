@@ -98,7 +98,7 @@ int hsMessageBoxWithOwner(hsWindowHndl owner, const char* message, const char* c
         if ([NSRunLoop currentRunLoop] == [NSRunLoop mainRunLoop]) {
             alertBlock();
         } else {
-            [[NSRunLoop mainRunLoop] performInModes:@[NSRunLoopCommonModes] block:alertBlock];
+            [[NSRunLoop mainRunLoop] performInModes:@[NSDefaultRunLoopMode] block:alertBlock];
             [lock lock];
             [lock wait];
             [lock unlock];
