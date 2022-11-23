@@ -338,6 +338,7 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     // "Starting URU, please wait..." dialog (not so yay)
     while (!gClient.IsInited())
     {
+        [NSRunLoop.mainRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]];
     }
     
     if (!gClient || gClient->GetDone()) {
