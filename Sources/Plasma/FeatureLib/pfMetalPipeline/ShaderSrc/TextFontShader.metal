@@ -87,9 +87,9 @@ vertex ColorInOut textFontVertexShader(constant Vertex *in [[ buffer(0) ]],
 fragment half4 textFontFragmentShader(ColorInOut in [[stage_in]],
                                texture2d<half> colorMap     [[ texture(0) ]])
 {
-    constexpr sampler colorSampler(mip_filter::nearest,
-                                   mag_filter::nearest,
-                                   min_filter::nearest);
+    constexpr sampler colorSampler(mip_filter::linear,
+                                   mag_filter::linear,
+                                   min_filter::linear);
 
     half4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy);
     colorSample *= in.color;
