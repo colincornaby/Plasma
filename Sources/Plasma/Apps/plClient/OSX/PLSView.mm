@@ -207,9 +207,6 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
         }
     }
     
-    delete(pXMsg);
-    delete(pYMsg);
-    
     /*
      For some reason the cusor has to get to the edge of the window before the
      client will properly interpret us moving back to center. Guessing that the
@@ -234,6 +231,9 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
             CGWarpMouseCursorPosition(warpPoint);
         }
     }
+    
+    delete(pXMsg);
+    delete(pYMsg);
 }
 
 - (void)viewDidChangeBackingProperties
