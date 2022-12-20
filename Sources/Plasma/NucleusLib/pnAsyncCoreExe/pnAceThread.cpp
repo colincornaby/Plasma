@@ -52,6 +52,26 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include <time.h>
 #endif
 
+static void CreateThreadProc(AsyncThread * thread)
+{
+#ifdef USE_VLD
+    VLDEnable();
+#endif
+
+    PerfAddCounter(kAsyncPerfThreadsTotal, 1);
+    PerfAddCounter(kAsyncPerfThreadsCurr, 1);
+
+    // Call thread procedure
+    thread->proc();
+
+    // Cleanup thread
+    delete thread;
+
+    PerfSubCounter(kAsyncPerfThreadsCurr, 1);
+    
+    thread->completion->unlock();
+}
+
 /*****************************************************************************
 *
 *   Module functions
@@ -67,6 +87,27 @@ void ThreadDestroy (unsigned exitThreadWaitMs) {
 }
 
 //============================================================================
+std::thread AsyncThreadCreate (
+    std::function<void()>    threadProc,
+    void *                               argument,
+    std::string                          name
+                               ) {
+    AsyncThread * thread    = new AsyncThread;
+    thread->proc            = threadProc;
+    thread->handle          = nullptr;
+    thread->argument        = argument;
+    thread->workTimeMs      = kAsyncTimeInfinite;
+    thread->name            = name;
+    
+    auto completion = std::make_shared<std::mutex>();
+    completion->lock();
+    thread->completion = completion;
+    
+    std::thread handle(&CreateThreadProc, thread);
+    thread->handle = &handle;
+    return handle;
+}
+
 void AsyncThreadTimedJoin(std::thread& thread, unsigned timeoutMs)
 {
     // HACK: No cross-platform way to perform a timed join :(
