@@ -67,6 +67,12 @@ constexpr unsigned kAsyncTimeInfinite = (unsigned) -1;
 
 struct AsyncThread;
 
+struct AsyncThreadRef {
+    std::shared_ptr<AsyncThread> impl;
+    std::shared_ptr<std::thread> thread();
+    bool joinable();
+};
+
 
 // Threads are also allowed to set the workTimeMs field of their
 // structure to a nonzero value for "on", and IO_TIME_INFINITE for
@@ -78,11 +84,9 @@ struct AsyncThread;
 struct AsyncThread {
     LINK(AsyncThread)                    link;
     std::function<void()>    proc;
-    std::thread *                        handle;
-    void *                               argument;
+    std::shared_ptr<std::thread>         handle;
     unsigned                             workTimeMs;
-    std::string                          name;
-    std::shared_ptr<std::mutex>          completion;
+    std::shared_ptr<std::timed_mutex>          completion;
 };
 
 
@@ -92,10 +96,9 @@ struct AsyncThread {
 *
 ***/
 
-std::thread AsyncThreadCreate (
-    std::function<void()>    proc,
-    void *                               argument,
-    const wchar_t                        name[]
+AsyncThreadRef AsyncThreadCreate (
+    std::function<void()>    procs
 );
 
+void AsyncThreadTimedJoin(AsyncThreadRef& ref, unsigned timeoutMs);
 void AsyncThreadTimedJoin(std::thread& thread, unsigned timeoutMs);
