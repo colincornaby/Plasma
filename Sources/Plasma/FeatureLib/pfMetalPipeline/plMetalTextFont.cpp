@@ -86,13 +86,12 @@ plMetalTextFont::~plMetalTextFont()
 
 void    plMetalTextFont::ICreateTexture( uint16_t *data )
 {
-    printf("Create texture\n");
-    
     MTL::TextureDescriptor *descriptor = MTL::TextureDescriptor::texture2DDescriptor(MTL::PixelFormatRGBA8Unorm, fTextureWidth, fTextureHeight, false);
     
     fTexture->release();
     fTexture = fDevice->fMetalDevice->newTexture(descriptor);
-    fTexture->setLabel(NS::MakeConstantString("Font texture"));
+    std::string textureName = "Font texture: Size " + std::to_string(GetFontSize());
+    fTexture->setLabel(NS::String::string(textureName.c_str(), NS::UTF8StringEncoding));
     
     struct InDataValues {
         uint8_t a: 4;
