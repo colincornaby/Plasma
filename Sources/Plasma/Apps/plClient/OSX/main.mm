@@ -41,6 +41,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 *==LICENSE==*/
 
 #include "plProduct.h"
+#include "plCmdParser.h"
 #include "plClient/plClient.h"
 #include "plClient/plClientLoader.h"
 #import "PLSKeyboardEventMonitor.h"
@@ -50,10 +51,17 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #if PLASMA_PIPELINE_METAL
 #include "pfMetalPipeline/plMetalPipeline.h"
 #endif
+#include <algorithm>
+#include <regex>
+#include <unordered_set>
 
 #include "pfConsoleCore/pfConsoleEngine.h"
 #include "pfGameGUIMgr/pfGameGUIMgr.h"
 #include "plInputCore/plInputDevice.h"
+#include "plNetClient/plNetClientMgr.h"
+#include "plNetGameLib/plNetGameLib.h"
+
+#include "PLSLoginWindowController.h"
 
 #import "Cocoa/Cocoa.h"
 #if PLASMA_PIPELINE_GL
@@ -66,8 +74,14 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #import "PLSKeyboardEventMonitor.h"
 #import "PLSView.h"
 #import <QuartzCore/QuartzCore.hpp>
+#include "plNetClient/plNetClientMgr.h"
+#define PARABLE_NORMAL_EXIT     0   // i.e. exited WinMain normally
 
 void PumpMessageQueueProc();
+
+
+extern bool gDataServerLocal;
+extern bool gSkipPreload;
 
 void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) {}
 void plClient::IChangeResolution(int width, int height) {}
@@ -75,9 +89,38 @@ void plClient::IUpdateProgressIndicator(plOperationProgress* progress) {}
 void plClient::InitDLLs() {}
 void plClient::ShutdownDLLs() {}
 void plClient::ShowClientWindow() {}
-void plClient::FlashWindow() {}
+void plClient::FlashWindow() {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSApp requestUserAttention:NSCriticalRequest];
+    });
+}
 
-@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate> {
+enum
+{
+    kArgSkipLoginDialog,
+    kArgServerIni,
+    kArgLocalData,
+    kArgSkipPreload,
+    kArgPlayerId,
+    kArgStartUpAgeName,
+    kArgPvdFile,
+    kArgSkipIntroMovies,
+    kArgRenderer
+};
+
+static const plCmdArgDef s_cmdLineArgs[] = {
+    { kCmdArgFlagged  | kCmdTypeBool,       "SkipLoginDialog", kArgSkipLoginDialog },
+    { kCmdArgFlagged  | kCmdTypeString,     "ServerIni",       kArgServerIni },
+    { kCmdArgFlagged  | kCmdTypeBool,       "LocalData",       kArgLocalData   },
+    { kCmdArgFlagged  | kCmdTypeBool,       "SkipPreload",     kArgSkipPreload },
+    { kCmdArgFlagged  | kCmdTypeInt,        "PlayerId",        kArgPlayerId },
+    { kCmdArgFlagged  | kCmdTypeString,     "Age",             kArgStartUpAgeName },
+    { kCmdArgFlagged  | kCmdTypeString,     "PvdFile",         kArgPvdFile },
+    { kCmdArgFlagged  | kCmdTypeBool,       "SkipIntroMovies", kArgSkipIntroMovies },
+    { kCmdArgFlagged  | kCmdTypeString,     "Renderer",        kArgRenderer },
+};
+
+@interface AppDelegate: NSWindowController <NSApplicationDelegate, NSWindowDelegate, PLSViewDelegate, PLSLoginWindowControllerDelegate> {
     @public plClientLoader gClient;
     
 }
@@ -121,20 +164,24 @@ PF_CONSOLE_LINK_ALL()
     dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL);
     
     dispatch_async(loadingQueue, ^{
+        gClient->WindowActivate(TRUE);
         gClient->SetMessagePumpProc(PumpMessageQueueProc);
         gClient.Start();
     });
     
     dispatch_async(loadingQueue, ^{
-        [self setupRunLoop];
-        [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidChangeScreenNotification object:self.window queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
-            //if we change displays, setup a new draw loop. The new display might have a different or variable refresh rate.
+        dispatch_async(dispatch_get_main_queue(), ^{
             [self setupRunLoop];
-        }];
+            [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidChangeScreenNotification object:self.window queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
+                //if we change displays, setup a new draw loop. The new display might have a different or variable refresh rate.
+                [self setupRunLoop];
+            }];
+        });
     });
 }
 
 - (void)setupRunLoop {
+    NetCliAuthAutoReconnectEnable(true);
     if(self.displayLink) {
         CVDisplayLinkStop(self.displayLink);
         CVDisplayLinkRelease(self.displayLink);
@@ -153,14 +200,9 @@ PF_CONSOLE_LINK_ALL()
 }
 
 - (void)runLoop {
-    //dispatch_sync(dispatch_get_main_queue(), ^{
-    //    gClient->GetPipeline()->Resize(self.window.contentView.bounds.size.width, self.window.contentView.bounds.size.height);
-    //});
     gClient->MainLoop();
-    //PumpMessageQueueProc();
 
     if (gClient->GetDone()) {
-        gClient.ShutdownEnd();
         [NSApp terminate:self];
     }
 }
@@ -177,6 +219,20 @@ PF_CONSOLE_LINK_ALL()
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+    gClient.Init();
+    
+    PLSLoginWindowController *loginWindow = [[PLSLoginWindowController alloc] init];
+    loginWindow.delegate = self;
+    [loginWindow showWindow:self];
+}
+
+- (void)loginWindowControllerDidLogin:(PLSLoginWindowController *)sender
+{
+    [sender close];
+    [self startClient];
+}
+
+- (void)startClient {
     PF_CONSOLE_INITIALIZE(Audio)
     
     self.plsView.delegate = self;
@@ -189,7 +245,12 @@ PF_CONSOLE_LINK_ALL()
 
     // Window controller
     [self.window setContentSize:NSMakeSize(800, 600)];
-    [self.window orderFrontRegardless];
+#if 0
+    //allow this executation path to start in full screen
+    [self.window toggleFullScreen:self];
+#endif
+    [self.window center];
+    [self.window makeKeyAndOrderFront:self];
     self.renderLayer = self.window.contentView.layer;
     
     gClient.SetClientWindow((hsWindowHndl)(__bridge void *)self.window);
@@ -251,7 +312,10 @@ PF_CONSOLE_LINK_ALL()
     //Do any cleanup we need to do. If we need to we can ask for more time, but right now nothing in our implementation requires that.
     CVDisplayLinkStop(self.displayLink);
     @synchronized (_renderLayer) {
+        gClient.ShutdownStart();
+        gClient->MainLoop();
         gClient.ShutdownEnd();
+        NetCommShutdown();
     }
     return NSTerminateNow;
 }
@@ -264,17 +328,56 @@ void PumpMessageQueueProc()
 
 int main(int argc, const char** argv)
 {
+    PF_CONSOLE_INIT_ALL()
     [NSApplication sharedApplication];
     [NSBundle.mainBundle loadNibNamed:@"MainMenu" owner:NSApp topLevelObjects:nil];
+    std::vector<ST::string> args;
+    args.reserve(argc);
+    for (size_t i = 0; i < argc; i++) {
+        args.push_back(ST::string::from_utf8(argv[i]));
+    }
+
+    plCmdParser cmdParser(s_cmdLineArgs, std::size(s_cmdLineArgs));
+    cmdParser.Parse(args);
     
-    /*
-     On Windows, init could be long enough that a loading screen has to be shown, but it's
-     generally considered to be pretty short. The Mac doesn't really do quick interstial loading windows,
-     it just bounces the dock icon until we're ready to go. So we'll do the init here before
-     we mark the app as running. If Init ever gets heavier, feel free to revisit this assumption.
-     */
-    //argc, argv
-    ((AppDelegate *)[NSApp delegate])->gClient.Init();
+    plFileName serverIni = "server.ini";
+    if (cmdParser.IsSpecified(kArgServerIni))
+        serverIni = cmdParser.GetString(kArgServerIni);
+    
+    FILE *serverIniFile = plFileSystem::Open(serverIni, "rb");
+    if (serverIniFile)
+    {
+        fclose(serverIniFile);
+        pfConsoleEngine tempConsole;
+        tempConsole.ExecuteFile(serverIni);
+    }
+    else
+    {
+        hsMessageBox("No server.ini file found.  Please check your URU installation.", "Error", hsMessageBoxNormal);
+        return PARABLE_NORMAL_EXIT;
+    }
+    
+#ifndef PLASMA_EXTERNAL_RELEASE
+    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
+    //    doIntroDialogs = false;
+    if (cmdParser.IsSpecified(kArgLocalData))
+    {
+        gDataServerLocal = true;
+        gSkipPreload = true;
+    }
+    if (cmdParser.IsSpecified(kArgSkipPreload))
+        gSkipPreload = true;
+    if (cmdParser.IsSpecified(kArgPlayerId))
+        NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
+    if (cmdParser.IsSpecified(kArgStartUpAgeName))
+        NetCommSetIniStartUpAge(cmdParser.GetString(kArgStartUpAgeName));
+    
+    plPipeline::fInitialPipeParams.TextureQuality = 2;
+    //if (cmdParser.IsSpecified(kArgPvdFile))
+     //   plPXSimulation::SetDefaultDebuggerEndpoint(cmdParser.GetString(kArgPvdFile));
+    //if (cmdParser.IsSpecified(kArgRenderer))
+    //    gClient.SetRequestedRenderingBackend(ParseRendererArgument(cmdParser.GetString(kArgRenderer)));
+#endif
     
     [NSApp run];
 }
