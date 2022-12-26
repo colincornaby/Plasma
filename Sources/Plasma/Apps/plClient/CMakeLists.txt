@@ -95,12 +95,19 @@ elseif(APPLE)
         OSX/main.mm
         OSX/PLSKeyboardEventMonitor.mm
         OSX/PLSView.mm
+        OSX/PLSLoginWindowController.mm
     )
     set(plClient_HEADERS ${plClient_HEADERS}
         OSX/PLSKeyboardEventMonitor.h
         OSX/PLSView.h
+        OSX/PLSLoginWindowController.h
     )
-    set(RESOURCES OSX/MainMenu.xib)
+    set(RESOURCES 
+        OSX/MainMenu.xib
+        OSX/PLSLoginWindowController.xib
+        OSX/banner@2x.jpeg
+        win32/res/Dirt.ICO
+    )
     #shaders need to be compiled as part of the app
     #this could change in the future, but for now the Metal code expects the library to be compiled in the app
     set(plClient_SHADERS
