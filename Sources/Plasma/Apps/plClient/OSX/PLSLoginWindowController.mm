@@ -42,18 +42,9 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #import "PLSLoginWindowController.h"
 #import "PLSServerStatus.h"
-#include <string_theory/string>
-#include "plNetGameLib/plNetGameLib.h"
-#include "plNetClient/plNetClientMgr.h"
 #include "plNetGameLib/plNetGameLib.h"
 #include "plProduct.h"
 #include "pfPasswordStore/pfPasswordStore.h"
-
-@interface PLSLoginParameters: NSObject
-@property NSString *username;
-@property NSString *password;
-@property BOOL rememberPassword;
-@end
 
 @interface PLSLoginWindowController ()
 
@@ -64,15 +55,56 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 @property (assign) IBOutlet NSWindow *loggingInWindow;
 
 @property (strong) PLSLoginParameters *loginParameters;
-@property (strong) NSOperationQueue *loginOperationQueue;
 
 @end
 
 #define FAKE_PASS_STRING @"********"
 
+static NSOperationQueue *_loginQueue = nil;
+
+@implementation PLSLoginController
+
++(void)initialize {
+    _loginQueue = [NSOperationQueue new];
+    _loginQueue.maxConcurrentOperationCount = 1;
+}
+
++(void)attemptLogin:(void (^)(ENetError))completion {
+    NSBlockOperation *operation = [[NSBlockOperation alloc] init];
+    __weak NSBlockOperation *weakOperation = operation;
+    [operation addExecutionBlock:^{
+        NetCliAuthAutoReconnectEnable(false);
+        
+        if (!NetCliAuthQueryConnected())
+            NetCommConnect();
+        NetCommAuthenticate(nullptr);
+        
+       while (!NetCommIsLoginComplete()) {
+           if(weakOperation.cancelled) {
+               return;
+           }
+           NetCommUpdate();
+       }
+       
+       ENetError result = NetCommGetAuthResult();
+       [NSOperationQueue.mainQueue addOperationWithBlock:^{
+           completion(result);
+       }];
+    }];
+    [_loginQueue addOperation:operation];
+}
+
+@end
+
 @implementation PLSLoginParameters
 
 static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
+
+- (id)init {
+    self = [super init];
+    [self load];
+    return self;
+}
 
 -(void)mutableUserDefaults:(bool (^)(NSMutableDictionary *dictionary))callback {
     //windows segments by product name here. in since user defaults belong to this product, we don't need to do that.
@@ -135,6 +167,16 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
     dest[4] = hsToBE32(from[4]);
 }
 
+-(void)makeCurrent {
+    ShaDigest hash;
+    [self storeHash:hash];
+    
+    ST::string username = ST::string([self.username cStringUsingEncoding:NSUTF8StringEncoding]);
+    NetCommSetAccountUsernamePassword(username, hash);
+    char16_t platform[] = u"mac";
+    NetCommSetAuthTokenAndOS(nullptr, platform);
+}
+
 @end
 
 @implementation PLSLoginWindowController
@@ -145,8 +187,6 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
     
     self.loginParameters = [[PLSLoginParameters alloc] init];
     [self.loginParameters load];
-    
-    self.loginOperationQueue = [[NSOperationQueue alloc] init];
     
     if(self.loginParameters.rememberPassword) {
         [self.passwordTextField setStringValue:FAKE_PASS_STRING];
@@ -173,36 +213,11 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
         
     }];
     
-    ShaDigest hash;
-    [self.loginParameters storeHash:hash];
+    [self.loginParameters makeCurrent];
     
-    NetCliAuthAutoReconnectEnable(false);
-    ST::string username = ST::string([self.loginParameters.username cStringUsingEncoding:NSUTF8StringEncoding]);
-    NetCommSetAccountUsernamePassword(username, hash);
-    char16_t platform[] = u"mac";
-    NetCommSetAuthTokenAndOS(nullptr, platform);
-    
-    
-    if (!NetCliAuthQueryConnected())
-        NetCommConnect();
-    NetCommAuthenticate(nullptr);
-    
-    NSBlockOperation *operation = [[NSBlockOperation alloc] init];
-    __weak NSBlockOperation *weakOperation = operation;
-    [operation addExecutionBlock:^{
-       while (!NetCommIsLoginComplete()) {
-           if(weakOperation.cancelled) {
-               return;
-           }
-           NetCommUpdate();
-       }
-       
-       ENetError result = NetCommGetAuthResult();
-       [NSOperationQueue.mainQueue addOperationWithBlock:^{
-           [self loginAttemptEndedWithResult:result];
-       }];
+    [PLSLoginController attemptLogin:^(ENetError result) {
+        [self loginAttemptEndedWithResult:result];
     }];
-    [self.loginOperationQueue addOperation:operation];
 }
 
 -(void)loginAttemptEndedWithResult:(ENetError)result {

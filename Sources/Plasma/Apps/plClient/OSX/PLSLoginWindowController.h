@@ -42,7 +42,26 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #import <Cocoa/Cocoa.h>
 
+#include "plNetClient/plNetClientMgr.h"
+
 NS_ASSUME_NONNULL_BEGIN
+
+@interface PLSLoginParameters: NSObject
+@property NSString *username;
+@property NSString *password;
+@property BOOL rememberPassword;
+
+-(void)load;
+-(void)save;
+-(void)makeCurrent;
+
+@end
+
+@interface PLSLoginController: NSObject
+
++(void)attemptLogin:(void (^)(ENetError))completion;
+
+@end
 
 @class PLSLoginWindowController;
 
