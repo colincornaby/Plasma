@@ -192,6 +192,9 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     
     dispatch_async(loadingQueue, ^{
         [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
+        // Must be done here due to the plClient* dereference.
+        if (cmdParser.IsSpecified(kArgSkipIntroMovies))
+            gClient->SetFlag(plClient::kFlagSkipIntroMovies);
         gClient->WindowActivate(TRUE);
         gClient->SetMessagePumpProc(PumpMessageQueueProc);
         gClient.Start();
@@ -298,6 +301,21 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     if (cmdParser.IsSpecified(kArgSkipPreload))
         gSkipPreload = true;
     
+#ifndef PLASMA_EXTERNAL_RELEASE
+    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
+    //    doIntroDialogs = false;
+    if (cmdParser.IsSpecified(kArgPlayerId))
+        NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
+    if (cmdParser.IsSpecified(kArgStartUpAgeName))
+        NetCommSetIniStartUpAge(cmdParser.GetString(kArgStartUpAgeName));
+    
+    plPipeline::fInitialPipeParams.TextureQuality = 2;
+    //if (cmdParser.IsSpecified(kArgPvdFile))
+     //   plPXSimulation::SetDefaultDebuggerEndpoint(cmdParser.GetString(kArgPvdFile));
+    //if (cmdParser.IsSpecified(kArgRenderer))
+    //    gClient.SetRequestedRenderingBackend(ParseRendererArgument(cmdParser.GetString(kArgRenderer)));
+#endif
+    
     NetCommStartup();
     NetCommConnect();
     [[PLSServerStatus sharedStatus] loadServerStatus];
@@ -316,23 +334,15 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     [self.patcher start];
 }
 
+- (void) showLoginWindow {
+    self.loginWindow = [[PLSLoginWindowController alloc] init];
+    self.loginWindow.delegate = self;
+    [self.loginWindow showWindow:self];
+    [self.loginWindow.window makeKeyAndOrderFront:self];
+}
+
 - (void) initializeClient {
     gClient.Init();
-    
-#ifndef PLASMA_EXTERNAL_RELEASE
-    //if (cmdParser.IsSpecified(kArgSkipLoginDialog))
-    //    doIntroDialogs = false;
-    if (cmdParser.IsSpecified(kArgPlayerId))
-        NetCommSetIniPlayerId(cmdParser.GetInt(kArgPlayerId));
-    if (cmdParser.IsSpecified(kArgStartUpAgeName))
-        NetCommSetIniStartUpAge(cmdParser.GetString(kArgStartUpAgeName));
-    
-    plPipeline::fInitialPipeParams.TextureQuality = 2;
-    //if (cmdParser.IsSpecified(kArgPvdFile))
-     //   plPXSimulation::SetDefaultDebuggerEndpoint(cmdParser.GetString(kArgPvdFile));
-    //if (cmdParser.IsSpecified(kArgRenderer))
-    //    gClient.SetRequestedRenderingBackend(ParseRendererArgument(cmdParser.GetString(kArgRenderer)));
-#endif
     
     // We should quite frankly be done initing the client by now. But, if not, spawn the good old
     // "Starting URU, please wait..." dialog (not so yay)
@@ -346,10 +356,21 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         return;
     }
     
-    self.loginWindow = [[PLSLoginWindowController alloc] init];
-    self.loginWindow.delegate = self;
-    [self.loginWindow showWindow:self];
-    [self.loginWindow.window makeKeyAndOrderFront:self];
+    if (cmdParser.IsSpecified(kArgSkipLoginDialog)) {
+        PLSLoginParameters *params = [PLSLoginParameters new];
+        [params makeCurrent];
+        [PLSLoginController attemptLogin:^(ENetError error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if(error == kNetSuccess) {
+                    [self startClient];
+                } else {
+                    [self showLoginWindow];
+                }
+            });
+        }];
+    } else {
+        [self showLoginWindow];
+    }
 }
 
 - (void)patcher:(PLSPatcher *)patcher beganDownloadOfFile:(NSString *)file
