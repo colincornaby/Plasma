@@ -47,6 +47,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "plInputDevice.h"
 #include "plInputManager.h"
 #include "plAvatarInputInterface.h"
+#include "plMessage/plDisplayScaleChangedMsg.h"
 #include "plMessage/plInputEventMsg.h"
 #include "pnMessage/plTimeMsg.h"
 
@@ -388,7 +389,13 @@ void    plMouseDevice::SetCursorOpacity( float opacity )
 }
 
 bool plMouseDevice::MsgReceive(plMessage* msg)
-{   
+{
+    plDisplayScaleChangedMsg* pDSChangedMsg = plDisplayScaleChangedMsg::ConvertNoRef(msg);
+    if (pDSChangedMsg) {
+        SetDisplayScale(pDSChangedMsg->GetScale());
+        return true;
+    }
+
     plEvalMsg* pEMsg = plEvalMsg::ConvertNoRef(msg);
     if (pEMsg)
     {
