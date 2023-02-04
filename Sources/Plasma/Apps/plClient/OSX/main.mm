@@ -320,7 +320,11 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     NetCommConnect();
     [[PLSServerStatus sharedStatus] loadServerStatus];
     
-    [self prepatch];
+    if(gSkipPreload) {
+        [self initializeClient];
+    } else {
+        [self prepatch];
+    }
 }
 
 - (void) prepatch {

@@ -45,6 +45,8 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "plNetGameLib/plNetGameLib.h"
 #include "plProduct.h"
 #include "pfPasswordStore/pfPasswordStore.h"
+#include <regex>
+#include "pnEncryption/plChallengeHash.h"
 
 @interface PLSLoginWindowController ()
 
@@ -156,15 +158,28 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 }
 
 -(void)storeHash:(ShaDigest &)namePassHash {
+    //  Hash username and password before sending over the 'net.
+    //  -- Legacy compatibility: @gametap (and other usernames with domains in them) need
+    //     to be hashed differently.
+    ST::string username = ST::string([self.username cStringUsingEncoding:NSUTF8StringEncoding]);
     ST::string password = ST::string([self.password cStringUsingEncoding:NSUTF8StringEncoding]);
-    plSHA1Checksum shasum(password.size(), reinterpret_cast<const uint8_t*>(password.c_str()));
-    uint32_t* dest = reinterpret_cast<uint32_t*>(namePassHash);
-    const uint32_t* from = reinterpret_cast<const uint32_t*>(shasum.GetValue());
-    dest[0] = hsToBE32(from[0]);
-    dest[1] = hsToBE32(from[1]);
-    dest[2] = hsToBE32(from[2]);
-    dest[3] = hsToBE32(from[3]);
-    dest[4] = hsToBE32(from[4]);
+    static const std::regex re_domain("[^@]+@([^.]+\\.)*([^.]+)\\.[^.]+");
+    std::cmatch match;
+    std::regex_search(username.c_str(), match, re_domain);
+    if (match.empty() || ST::string(match[2].str()).compare_i("gametap") == 0) {
+        plSHA1Checksum shasum(password.size(), reinterpret_cast<const uint8_t*>(password.c_str()));
+        uint32_t* dest = reinterpret_cast<uint32_t*>(namePassHash);
+        const uint32_t* from = reinterpret_cast<const uint32_t*>(shasum.GetValue());
+        dest[0] = hsToBE32(from[0]);
+        dest[1] = hsToBE32(from[1]);
+        dest[2] = hsToBE32(from[2]);
+        dest[3] = hsToBE32(from[3]);
+        dest[4] = hsToBE32(from[4]);
+    }
+    else {
+        //  Domain-based Usernames...
+        CryptHashPassword(username, password, namePassHash);
+    }
 }
 
 -(void)makeCurrent {
