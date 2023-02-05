@@ -150,9 +150,8 @@ else()
 endif()
 
 if(APPLE)
-    add_executable(plClient MACOSX_BUNDLE ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES})
-    set_target_properties(plClient PROPERTIES XCODE_ATTRIBUTE_MTL_FAST_MATH "YES")
-    set(MAIN_NIBFILE "MainMenu")           
+    plasma_executable(plClient CLIENT INSTALL_PDB SOURCES ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES})
+    set(MAIN_NIBFILE "MainMenu")
     set_target_properties(plClient PROPERTIES
         BUNDLE True
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/OSX/Info.plist.in"
@@ -160,6 +159,11 @@ if(APPLE)
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon;
+        XCODE_ATTRIBUTE_MTL_FAST_MATH "YES";
+        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=Debug] "INCLUDE_SOURCE";
+        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=RelWithDebInfo] "INCLUDE_SOURCE";
+        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
+        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
     )
     set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
     target_sources(plClient PRIVATE OSX/Assets.xcassets)
