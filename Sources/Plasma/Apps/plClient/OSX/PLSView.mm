@@ -207,28 +207,36 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
         }
     }
     
-    /*
-     For some reason the cusor has to get to the edge of the window before the
-     client will properly interpret us moving back to center. Guessing that the
-     large distance change triggers some condition in the client.
-     */
-    
     if(self.inputManager->RecenterMouse()) {
         CGPoint warpPoint = [self.window convertPointToScreen:windowLocation];
         CGPoint newWindowLocation = windowLocation;
         
         if(self.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9) ) {
             newWindowLocation.x =  CGRectGetMidX(self.window.contentView.bounds);
+            
+            //macOS won't generate a new message on warp, need to tell Plasma by hand
+            pXMsg->fWx = newWindowLocation.x;
+            pXMsg->fX = 0.5f;
+            self.inputManager->MsgReceive(pXMsg);
         }
         
         if(self.inputManager->RecenterMouse()  && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9) ) {
             newWindowLocation.y = CGRectGetMidY(self.window.contentView.bounds);
+            
+            //macOS won't generate a new message on warp, need to tell Plasma by hand
+            pYMsg->fWy = newWindowLocation.y;
+            pYMsg->fY = 0.5f;
+            self.inputManager->MsgReceive(pYMsg);
         }
         
         if(!CGPointEqualToPoint(newWindowLocation, windowLocation)) {
             warpPoint = [self.window convertPointToScreen:newWindowLocation];
             warpPoint.y = [[NSScreen screens][0] frame].size.height - warpPoint.y;
             CGWarpMouseCursorPosition(warpPoint);
+            //macOS will pause input afer warp, turn that off
+            CGEventSourceRef eventSourceRef = CGEventSourceCreate(kCGEventSourceStateCombinedSessionState);
+            CGEventSourceSetLocalEventsSuppressionInterval(eventSourceRef, 0.0);
+            CFRelease(eventSourceRef);
         }
     }
     
