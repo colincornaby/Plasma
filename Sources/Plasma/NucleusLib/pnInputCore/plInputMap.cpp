@@ -47,7 +47,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #include "plResMgr/plLocalization.h"
 
-#ifdef HS_BUILD_FOR_APPLE
+#ifdef HS_BUILD_FOR_MACOS
 #include <Carbon/Carbon.h>
 #endif
 
