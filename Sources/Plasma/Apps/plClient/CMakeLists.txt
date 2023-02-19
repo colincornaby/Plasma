@@ -178,11 +178,6 @@ if(APPLE)
         TARGETS plClient
         DESTINATION client
     )
-    set (searchDirs
-        "${CMAKE_PREFIX_PATH}/lib"
-        "${CMAKE_PREFIX_PATH}/usr/local/lib"
-        "${CMAKE_PREFIX_PATH}/mac64/physx/bin/mac64.xcode/release"
-    )
 else()
     plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
         SOURCES
