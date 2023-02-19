@@ -40,45 +40,21 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 *==LICENSE==*/
 
-#import "PLSServerStatus.h"
-#include <string_theory/string>
-#include "plNetGameLib/plNetGameLib.h"
 #include "StringTheory_NSString.h"
 
-@interface PLSServerStatus () <NSURLSessionDelegate>
-@property NSString * serverStatusString;
-@end
+@implementation NSString (StringTheory)
 
-@implementation PLSServerStatus
-
-+(id)sharedStatus {
-      static PLSServerStatus* shared = nil;
-      static dispatch_once_t onceToken;
-      dispatch_once(&onceToken, ^{
-          shared = [[self alloc] init];
-      });
-      return shared;
+-(id)initWithSTString:(const ST::string&)string {
+    self = [self initWithCString:string.data() encoding:NSUTF8StringEncoding];
+    return self;
 }
 
--(void)loadServerStatus
-{
-    NSString *urlString = [NSString stringWithSTString:GetServerStatusUrl()];
-    NSURL *url = [NSURL URLWithString:urlString];
-    NSURLSessionConfiguration *URLSessionConfiguration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:URLSessionConfiguration delegate:self delegateQueue:NSOperationQueue.mainQueue];
-    NSURLSessionTask *statusTask = [session dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-        if(data) {
-            NSString *statusString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            self.serverStatusString = statusString;
-        }
-    }];
-    [statusTask resume];
++(id)stringWithSTString:(const ST::string&)string {
+    return [[NSString alloc] initWithSTString:string];
 }
 
-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
-{
-    //Some servers, including Cyans, support HTTPS on their status feeds, but with self signed certs.
-    completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
+-(const ST::string)stString {
+    return ST::string([self cStringUsingEncoding:NSUTF8StringEncoding]);
 }
 
 @end

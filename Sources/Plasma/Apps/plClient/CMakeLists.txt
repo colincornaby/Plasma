@@ -99,6 +99,7 @@ elseif(APPLE)
         OSX/PLSPatcherWindowController.mm
         OSX/PLSPatcher.mm
         OSX/PLSServerStatus.mm
+        OSX/StringTheory_NSString.mm
     )
     set(plClient_HEADERS ${plClient_HEADERS}
         OSX/PLSKeyboardEventMonitor.h
@@ -107,6 +108,7 @@ elseif(APPLE)
         OSX/PLSPatcherWindowController.h
         OSX/PLSPatcher.h
         OSX/PLSServerStatus.h
+        OSX/StringTheory_NSString.h
     )
     set(RESOURCES 
         OSX/MainMenu.xib
