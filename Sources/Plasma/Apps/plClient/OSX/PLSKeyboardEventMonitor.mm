@@ -67,11 +67,6 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 @implementation PLSKeyboardEventMonitor
 
-NSEventMask eventMasks =
-NSEventMaskKeyDown |
-NSEventMaskKeyUp |
-NSEventMaskFlagsChanged;
-
 -(plClientLoader&)gClient {
     return *_gClient;
 }
@@ -82,6 +77,8 @@ NSEventMaskFlagsChanged;
     self.view = view;
     _gClient = gClient;
     self.inputManager = self.gClient->GetInputManager();
+    
+    const NSEventMask eventMasks = NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
     
     self.localMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:eventMasks handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
         if([self processEvent:event]) {
