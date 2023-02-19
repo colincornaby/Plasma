@@ -47,6 +47,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "pfPasswordStore/pfPasswordStore.h"
 #include <regex>
 #include "pnEncryption/plChallengeHash.h"
+#include "StringTheory_NSString.h"
 
 @interface PLSLoginWindowController ()
 
@@ -110,7 +111,7 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 
 -(void)mutableUserDefaults:(bool (^)(NSMutableDictionary *dictionary))callback {
     //windows segments by product name here. in since user defaults belong to this product, we don't need to do that.
-    NSString *serverName = [NSString stringWithCString:GetServerDisplayName().c_str() encoding:NSUTF8StringEncoding];
+    NSString *serverName = [NSString stringWithSTString:GetServerDisplayName()];
     NSMutableDictionary *settingsDictionary = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:serverName] mutableCopy];
     if(!settingsDictionary)
         settingsDictionary = [NSMutableDictionary dictionary];
@@ -122,7 +123,7 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 
 -(void)save {
     //windows segments by product name here. in since user defaults belong to this product, we don't need to do that.
-    NSString *serverName = [NSString stringWithCString:GetServerDisplayName().c_str() encoding:NSUTF8StringEncoding];
+    NSString *serverName = [NSString stringWithSTString:GetServerDisplayName()];
     NSMutableDictionary *settingsDictionary = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:serverName] mutableCopy];
     if(!settingsDictionary)
         settingsDictionary = [NSMutableDictionary dictionary];
@@ -144,16 +145,16 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 }
 
 -(void)load {
-    NSString *serverName = [NSString stringWithCString:GetServerDisplayName().c_str() encoding:NSUTF8StringEncoding];
+    NSString *serverName = [NSString stringWithSTString:GetServerDisplayName()];
     NSDictionary *settingsDictionary = [[NSUserDefaults standardUserDefaults] dictionaryForKey:serverName];
     self.username = [settingsDictionary objectForKey:@"LastAccountName"];
     self.rememberPassword = [[settingsDictionary objectForKey:@"RememberPassword"] boolValue];
     
     if(self.rememberPassword) {
         pfPasswordStore* store = pfPasswordStore::Instance();
-        ST::string username = ST::string([self.username cStringUsingEncoding:NSUTF8StringEncoding]);
+        ST::string username = [self.username stString];
         ST::string password = store->GetPassword(username);
-        self.password = [NSString stringWithCString:password.c_str() encoding:NSUTF8StringEncoding];
+        self.password = [NSString stringWithSTString:password];
     }
 }
 
@@ -210,7 +211,7 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
     [super windowDidLoad];
     
     [self.window center];
-    [self.productTextField setStringValue:[NSString stringWithCString:plProduct::ProductString().c_str() encoding:NSUTF8StringEncoding]];
+    [self.productTextField setStringValue:[NSString stringWithSTString:plProduct::ProductString().c_str()]];
 }
 
 - (NSNibName)windowNibName {
@@ -253,7 +254,7 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
 }
 
 - (IBAction)needAccountButtonHit:(id)sender {
-    NSString *urlString = [NSString stringWithCString:GetServerSignupUrl().c_str() encoding:NSUTF8StringEncoding];
+    NSString *urlString = [NSString stringWithSTString:GetServerSignupUrl()];
     NSURL *url = [NSURL URLWithString:urlString];
     if(url) {
         [[NSWorkspace sharedWorkspace] openURL:url];

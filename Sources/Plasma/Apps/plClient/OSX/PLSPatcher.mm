@@ -48,6 +48,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "pfPatcher/plManifests.h"
 #include "plNetGameLib/plNetGameLib.h"
 #include <string_theory/format>
+#include "StringTheory_NSString.h"
 
 class Patcher {
 public:
@@ -96,8 +97,7 @@ public:
 
 void Patcher::IOnDownloadBegin(const plFileName& file)
 {
-    const char* wideChars = file.AsString().c_str();
-    NSString *fileName = [NSString stringWithCString:(char *)wideChars encoding:NSUTF8StringEncoding];
+    NSString *fileName = [NSString stringWithSTString:file.AsString()];
     dispatch_async(dispatch_get_main_queue(), ^{
         [parent.delegate patcher:parent beganDownloadOfFile:fileName];
     });
@@ -105,7 +105,7 @@ void Patcher::IOnDownloadBegin(const plFileName& file)
 
 void Patcher::IOnProgressTick(uint64_t curBytes, uint64_t totalBytes, const ST::string& status)
 {
-    NSString *statusString = [NSString stringWithCString:status.c_str() encoding:NSUTF8StringEncoding];
+    NSString *statusString = [NSString stringWithSTString:status];
     
     dispatch_async(dispatch_get_main_queue(), ^{
         [parent.delegate patcher:parent updatedProgress:statusString withBytes:curBytes outOf:totalBytes];
@@ -129,7 +129,7 @@ void Patcher::IOnPatchComplete(ENetError result, const ST::string& msg)
             [patcher.delegate patcherCompleted:patcher];
         });
     } else  {
-        NSString *msgString = [NSString stringWithCString:msg.c_str() encoding:NSUTF8StringEncoding];
+        NSString *msgString = [NSString stringWithSTString:msg];
         
         dispatch_async(dispatch_get_main_queue(), ^{
             [parent.delegate patcherCompletedWithError:parent error:[NSError

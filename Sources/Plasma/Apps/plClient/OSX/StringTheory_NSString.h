@@ -40,45 +40,18 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 *==LICENSE==*/
 
-#import "PLSServerStatus.h"
+#import <Foundation/Foundation.h>
 #include <string_theory/string>
-#include "plNetGameLib/plNetGameLib.h"
-#include "StringTheory_NSString.h"
 
-@interface PLSServerStatus () <NSURLSessionDelegate>
-@property NSString * serverStatusString;
-@end
+NS_ASSUME_NONNULL_BEGIN
 
-@implementation PLSServerStatus
+@interface NSString (StringTheory)
 
-+(id)sharedStatus {
-      static PLSServerStatus* shared = nil;
-      static dispatch_once_t onceToken;
-      dispatch_once(&onceToken, ^{
-          shared = [[self alloc] init];
-      });
-      return shared;
-}
+-(id)initWithSTString:(const ST::string&)string;
++(id)stringWithSTString:(const ST::string&)string;
 
--(void)loadServerStatus
-{
-    NSString *urlString = [NSString stringWithSTString:GetServerStatusUrl()];
-    NSURL *url = [NSURL URLWithString:urlString];
-    NSURLSessionConfiguration *URLSessionConfiguration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:URLSessionConfiguration delegate:self delegateQueue:NSOperationQueue.mainQueue];
-    NSURLSessionTask *statusTask = [session dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-        if(data) {
-            NSString *statusString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            self.serverStatusString = statusString;
-        }
-    }];
-    [statusTask resume];
-}
-
-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
-{
-    //Some servers, including Cyans, support HTTPS on their status feeds, but with self signed certs.
-    completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
-}
+-(const ST::string)stString;
 
 @end
+
+NS_ASSUME_NONNULL_END
