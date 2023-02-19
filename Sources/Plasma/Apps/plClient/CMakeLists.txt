@@ -164,7 +164,7 @@ if(APPLE)
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
     )
-    set_property (TARGET plClient APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
+    target_compile_options(plClient PUBLIC -fobjc-arc)
     target_sources(plClient PRIVATE OSX/Assets.xcassets)
     set_source_files_properties(OSX/Assets.xcassets ${RESOURCES} PROPERTIES
          MACOSX_PACKAGE_LOCATION Resources
@@ -256,7 +256,7 @@ endif(PLASMA_EXTERNAL_RELEASE)
 
 if(APPLE)
     get_target_property(OUTPUT_NAME plClient OUTPUT_NAME)
-    if(OUTPUT_NAME MATCHES "OUTPUT_NAME-NOTFOUND")
+    if(OUTPUT_NAME STREQUAL "OUTPUT_NAME-NOTFOUND")
         get_target_property(OUTPUT_NAME plClient NAME)
     endif()
     install(
