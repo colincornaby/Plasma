@@ -109,18 +109,6 @@ static void *StatusTextDidChangeContext = &StatusTextDidChangeContext;
     return self;
 }
 
--(void)mutableUserDefaults:(bool (^)(NSMutableDictionary *dictionary))callback {
-    //windows segments by product name here. in since user defaults belong to this product, we don't need to do that.
-    NSString *serverName = [NSString stringWithSTString:GetServerDisplayName()];
-    NSMutableDictionary *settingsDictionary = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:serverName] mutableCopy];
-    if(!settingsDictionary)
-        settingsDictionary = [NSMutableDictionary dictionary];
-    if(callback(settingsDictionary)) {
-        [[NSUserDefaults standardUserDefaults] setObject:settingsDictionary forKey:serverName];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-    }
-}
-
 -(void)save {
     //windows segments by product name here. in since user defaults belong to this product, we don't need to do that.
     NSString *serverName = [NSString stringWithSTString:GetServerDisplayName()];
