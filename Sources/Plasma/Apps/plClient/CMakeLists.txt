@@ -91,29 +91,29 @@ if(WIN32)
     )
 elseif(APPLE)
     set(plClient_SOURCES ${plClient_SOURCES}
-        OSX/main.mm
-        OSX/PLSKeyboardEventMonitor.mm
-        OSX/PLSView.mm
-        OSX/PLSLoginWindowController.mm
-        OSX/PLSPatcherWindowController.mm
-        OSX/PLSPatcher.mm
-        OSX/PLSServerStatus.mm
-        OSX/StringTheory_NSString.mm
+        Mac-Cocoa/main.mm
+        Mac-Cocoa/PLSKeyboardEventMonitor.mm
+        Mac-Cocoa/PLSView.mm
+        Mac-Cocoa/PLSLoginWindowController.mm
+        Mac-Cocoa/PLSPatcherWindowController.mm
+        Mac-Cocoa/PLSPatcher.mm
+        Mac-Cocoa/PLSServerStatus.mm
+        Mac-Cocoa/StringTheory_NSString.mm
     )
     set(plClient_HEADERS ${plClient_HEADERS}
-        OSX/PLSKeyboardEventMonitor.h
-        OSX/PLSView.h
-        OSX/PLSLoginWindowController.h
-        OSX/PLSPatcherWindowController.h
-        OSX/PLSPatcher.h
-        OSX/PLSServerStatus.h
-        OSX/StringTheory_NSString.h
+        Mac-Cocoa/PLSKeyboardEventMonitor.h
+        Mac-Cocoa/PLSView.h
+        Mac-Cocoa/PLSLoginWindowController.h
+        Mac-Cocoa/PLSPatcherWindowController.h
+        Mac-Cocoa/PLSPatcher.h
+        Mac-Cocoa/PLSServerStatus.h
+        Mac-Cocoa/StringTheory_NSString.h
     )
     set(RESOURCES 
-        OSX/MainMenu.xib
-        OSX/PLSLoginWindowController.xib
-        OSX/PLSPatcherWindowController.xib
-        OSX/banner@2x.jpeg
+        Mac-Cocoa/MainMenu.xib
+        Mac-Cocoa/PLSLoginWindowController.xib
+        Mac-Cocoa/PLSPatcherWindowController.xib
+        Mac-Cocoa/banner@2x.jpeg
         win32/res/Dirt.ICO
     )
     #shaders need to be compiled as part of the app
@@ -153,7 +153,7 @@ if(APPLE)
     set(MAIN_NIBFILE "MainMenu")
     set_target_properties(plClient PROPERTIES
         BUNDLE True
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/OSX/Info.plist.in"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Mac-Cocoa/Info.plist.in"
         MACOSX_BUNDLE_GUI_IDENTIFIER org.openuru.plClient
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
@@ -165,8 +165,8 @@ if(APPLE)
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
     )
     target_compile_options(plClient PUBLIC -fobjc-arc)
-    target_sources(plClient PRIVATE OSX/Assets.xcassets)
-    set_source_files_properties(OSX/Assets.xcassets ${RESOURCES} PROPERTIES
+    target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
+    set_source_files_properties(Mac-Cocoa/Assets.xcassets ${RESOURCES} PROPERTIES
          MACOSX_PACKAGE_LOCATION Resources
     )
     target_include_directories(plClient PRIVATE "../../FeatureLib/pfMetalPipeline/metal-cpp"
