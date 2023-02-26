@@ -164,7 +164,7 @@ if(APPLE)
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
     )
-    target_compile_options(plClient PUBLIC -fobjc-arc)
+    target_compile_options(plClient PRIVATE -fobjc-arc)
     target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
     set_source_files_properties(Mac-Cocoa/Assets.xcassets ${RESOURCES} PROPERTIES
          MACOSX_PACKAGE_LOCATION Resources
