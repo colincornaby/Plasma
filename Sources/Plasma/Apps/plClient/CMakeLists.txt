@@ -255,14 +255,10 @@ if(PLASMA_EXTERNAL_RELEASE)
 endif(PLASMA_EXTERNAL_RELEASE)
 
 if(APPLE)
-    get_target_property(OUTPUT_NAME plClient OUTPUT_NAME)
-    if(OUTPUT_NAME STREQUAL "OUTPUT_NAME-NOTFOUND")
-        get_target_property(OUTPUT_NAME plClient NAME)
-    endif()
     install(
         CODE "include(\"BundleUtilities\")
-            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/${OUTPUT_NAME}.app\" \"\" \"${searchDirs}\" IGNORE_ITEM Python)
-            execute_process(COMMAND \"codesign\" \"--remove-signature\" \"--deep\" \"-f\" \"${CMAKE_INSTALL_PREFIX}/client/${OUTPUT_NAME}.app\")
+            fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/client/$<TARGET_PROPERTY:plClient,OUTPUT_NAME>.app\" \"\" \"${searchDirs}\" IGNORE_ITEM Python)
+            execute_process(COMMAND \"codesign\" \"--remove-signature\" \"--deep\" \"-f\" \"${CMAKE_INSTALL_PREFIX}/client/$<TARGET_PROPERTY:plClient,OUTPUT_NAME>.app\")
             "
         DESTINATION client
     )
