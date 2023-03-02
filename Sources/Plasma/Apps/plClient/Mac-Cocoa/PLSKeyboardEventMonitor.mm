@@ -81,7 +81,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     const NSEventMask eventMasks = NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
     
     self.localMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:eventMasks handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
-        if([self processEvent:event]) {
+        if ([self processEvent:event]) {
             return nil;
         }
         return event;
@@ -92,7 +92,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 -(BOOL)processEvent:(NSEvent *)event {
     //is this even an event for our window
-    if([event window] == [self.view window]) {
+    if ([event window] == [self.view window]) {
         switch(event.type) {
             case NSEventTypeKeyDown:
             case NSEventTypeKeyUp:
@@ -120,7 +120,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 -(BOOL)processKeyEvent:(NSEvent *)event {
     NSEventModifierFlags modifierFlags = [event modifierFlags];
     //Don't intercept system key commands
-    if(modifierFlags & NSEventModifierFlagCommand) {
+    if (modifierFlags & NSEventModifierFlagCommand) {
         return NO;
     }
     
@@ -128,19 +128,19 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     
     unsigned short keycode = [event keyCode];
     //if it's a shift key event only way to derive up or down is through presence in the modifier flag
-    if(keycode == kVK_Shift) {
+    if (keycode == kVK_Shift) {
         down = (event.modifierFlags & NSEventModifierFlagShift) != 0;
     }
-    if(keycode == kVK_Option) {
+    if (keycode == kVK_Option) {
         down = (event.modifierFlags & NSEventModifierFlagOption) != 0;
     }
-    if(keycode == kVK_Control) {
+    if (keycode == kVK_Control) {
         down = (event.modifierFlags & NSEventModifierFlagControl) != 0;
     }
     
     /*
      This gets weird.
-     Recent Apple hardware is starting to have it's system key shortcuts assigned to the fn key instead of just the command key.
+     Recent Apple hardware is starting to have its system key shortcuts assigned to the fn key instead of just the command key.
      (For example: Function-F is the fullscreen toggle on the 2021 Macbook Pro.)
      So we want to pass function key class events back to the system and not trap them. But the system also considers key up/down/left/right
      as "function keys". So we want to not trap events that are function key events, but we do want to trap the arrow keys.
@@ -154,9 +154,9 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     @synchronized (self.view.layer) {
         self.inputManager->HandleKeyEvent((plKeyDef)keycode, down, event.type == NSEventTypeFlagsChanged ? false : event.ARepeat);
         if (!(modifierFlags & NSEventModifierFlagFunction) && down) {
-            if(event.type != NSEventTypeFlagsChanged && event.characters.length > 0) {
+            if (event.type != NSEventTypeFlagsChanged && event.characters.length > 0) {
                 char character = [event.characters cStringUsingEncoding:NSUTF8StringEncoding][0];
-                if(!std::iscntrl(character)) {
+                if (!std::iscntrl(character)) {
                     self.inputManager->HandleKeyEvent((plKeyDef)keycode, down, event.type == NSEventTypeFlagsChanged ? false : event.ARepeat, character);
                 }
             }
