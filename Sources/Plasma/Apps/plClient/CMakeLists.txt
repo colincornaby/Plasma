@@ -255,11 +255,14 @@ if(PLASMA_EXTERNAL_RELEASE)
 endif(PLASMA_EXTERNAL_RELEASE)
 
 if(APPLE)
+    # CMake will attempt to strip rpaths, thus preventing fixup_bundle from finding libraries.
+    # Not sure why - turning that off.
+    set_target_properties(plClient PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
     install(
         CODE [[
             include("BundleUtilities")
-            fixup_bundle("${CMAKE_INSTALL_PREFIX}/client/$<TARGET_PROPERTY:plClient,OUTPUT_NAME>.app" "" "${searchDirs}" IGNORE_ITEM Python)
-            execute_process(COMMAND "codesign" "--remove-signature" "--deep" "-f" "${CMAKE_INSTALL_PREFIX}/client/$<TARGET_PROPERTY:plClient,OUTPUT_NAME>.app")
+            fixup_bundle("${CMAKE_INSTALL_PREFIX}/client/$<TARGET_FILE_NAME:plClient>.app" "" "${searchDirs}" IGNORE_ITEM Python)
+            execute_process(COMMAND "codesign" "--remove-signature" "--deep" "-f" "${CMAKE_INSTALL_PREFIX}/client/$<TARGET_FILE_NAME:plClient>.app")
             ]]
         DESTINATION client
     )
