@@ -149,6 +149,11 @@ else()
 endif()
 
 if(APPLE)
+    file(GLOB PYTHON_MODULE_LIBRARIES "${Python3_STDARCH}/lib-dynload/*.so")
+    list(APPEND plClient_SOURCES
+        ${PYTHON_MODULE_LIBRARIES}
+    )
+    
     plasma_executable(plClient CLIENT INSTALL_PDB SOURCES ${plClient_SOURCES} ${plClient_HEADERS} ${RESOURCES})
     set(MAIN_NIBFILE "MainMenu")
     set_target_properties(plClient PROPERTIES
@@ -157,12 +162,14 @@ if(APPLE)
         MACOSX_BUNDLE_GUI_IDENTIFIER org.openuru.plClient
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
-        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon;
-        XCODE_ATTRIBUTE_MTL_FAST_MATH "YES";
-        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=Debug] "INCLUDE_SOURCE";
-        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=RelWithDebInfo] "INCLUDE_SOURCE";
-        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
-        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "org.openuru.plClient"
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
+        XCODE_ATTRIBUTE_MTL_FAST_MATH "YES"
+        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=Debug] "INCLUDE_SOURCE"
+        XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=RelWithDebInfo] "INCLUDE_SOURCE"
+        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES"
+        XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES"
+        XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--deep"
     )
     target_compile_options(plClient PRIVATE -fobjc-arc)
     target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
@@ -174,6 +181,13 @@ if(APPLE)
     target_link_libraries(plClient PRIVATE "-framework Cocoa")
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
     target_link_libraries(plClient PRIVATE "-framework MetalPerformanceShaders")
+    
+    message(STATUS ${PYTHON_MODULE_LIBRARIES})
+    foreach (FILE ${PYTHON_MODULE_LIBRARIES})
+        set_source_files_properties(${FILE}
+                 PROPERTIES MACOSX_PACKAGE_LOCATION "Frameworks/python-lib-dynload/${NEW_FILE_PATH}" XCODE_FILE_ATTRIBUTES "CodeSignOnCopy")
+    endforeach ()
+    
     install(
         TARGETS plClient
         DESTINATION client

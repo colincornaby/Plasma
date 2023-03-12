@@ -169,6 +169,10 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #include "pyCritterBrain.h"
 
+#ifdef HS_BUILD_FOR_APPLE
+#   include <CoreFoundation/CoreFoundation.h>
+#endif
+
 int32_t PythonInterface::initialized = 0;                 // only need to initialize all of Python once
 bool    PythonInterface::FirstTimeInit = true;           // start with "this is the first time"
 bool    PythonInterface::IsInShutdown = false;           // whether we are _really_ in shutdown mode
@@ -875,6 +879,27 @@ void PythonInterface::initPython()
     config.site_import = 0;
     PyConfig_SetString(&config, &config.program_name, L"plasma");
     config._init_main = 0;
+    
+    
+#ifdef HS_BUILD_FOR_APPLE
+    CFBundleRef mainBundle = CFBundleGetMainBundle();
+    CFURLRef frameworksPath = CFBundleCopyPrivateFrameworksURL(mainBundle);
+    CFURLRef dynloadPath = CFURLCopyAbsoluteURL(CFURLCreateCopyAppendingPathComponent(nullptr, frameworksPath, CFSTR("python-lib-dynload"), true));
+    CFStringRef dynloadPathString = CFURLCopyFileSystemPath(dynloadPath, kCFURLPOSIXPathStyle);
+    
+    const size_t bufferSize = CFStringGetMaximumSizeForEncoding(CFStringGetLength(dynloadPathString), kCFStringEncodingUTF16);
+    wchar_t* buffer = new wchar_t[bufferSize];
+    CFStringGetCString(dynloadPathString, (char*) buffer, bufferSize, kCFStringEncodingUTF16);
+    PyWideStringList_Append(&config.module_search_paths, buffer);
+    
+    delete[] buffer;
+    
+    CFRelease(frameworksPath);
+    CFRelease(dynloadPath);
+    CFRelease(dynloadPathString);
+    
+    config.module_search_paths_set = 1;
+#endif
 
     // Allow importing from the local python directory if and only if this is an internal client.
 #ifndef PLASMA_EXTERNAL_RELEASE
