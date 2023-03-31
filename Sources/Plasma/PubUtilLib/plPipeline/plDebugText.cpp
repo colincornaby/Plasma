@@ -108,6 +108,20 @@ uint16_t plDebugText::GetFontHeight()
     return 0;
 }
 
+uint16_t plDebugText::GetFontBaseline()
+{
+    if (fManager)
+        return fManager->GetFontBaseline();
+    return 0;
+}
+
+uint16_t plDebugText::GetFontFullHeight()
+{
+    if (fManager)
+        return fManager->GetFontFullHeight();
+    return 0;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //// plDebugTextManager Functions ////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -288,3 +302,20 @@ uint16_t plDebugTextManager::GetFontHeight()
     return 10;
 }
 
+uint16_t plDebugTextManager::GetFontBaseline()
+{
+    if (fFont)
+        return fFont->GetFontBaseline();
+
+    // Just return a quick default height until we get a real font
+    return 3;
+}
+
+uint16_t plDebugTextManager::GetFontFullHeight()
+{
+    if (fFont)
+        return fFont->GetFontFullHeight();
+
+    // Just return a quick default height until we get a real font
+    return 10;
+}

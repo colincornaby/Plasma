@@ -148,6 +148,8 @@ class plDebugText
         const char     *GetFontFace() { return fFontFace; }
         uint16_t        GetFontSize() { return fFontSize; }
         uint16_t        GetFontHeight();
+        uint16_t        GetFontBaseline();
+        uint16_t        GetFontFullHeight();
 
         void            SetEnable( bool on ) { fEnabled = on; }
         void            DisablePermanently() { fEnabled = false; fLockEnable = true; }
@@ -203,6 +205,8 @@ class   plDebugTextManager
         void    GetScreenSize( uint32_t *width, uint32_t *height );
 
         uint16_t  GetFontHeight();
+        uint16_t  GetFontBaseline();
+        uint16_t  GetFontFullHeight();
 };
 
 

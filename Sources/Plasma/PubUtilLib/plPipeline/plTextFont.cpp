@@ -118,6 +118,7 @@ uint16_t  *plTextFont::IInitFontTexture()
     hBitmap = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, (void **)&bitmapBits, nullptr, 0);
     SetMapMode( hDC, MM_TEXT );
 
+    int dpi = GetDeviceCaps(hDC, LOGPIXELSY);
     nHeight = -MulDiv( fSize, GetDeviceCaps( hDC, LOGPIXELSY ), 72 );
     fFontHeight = -nHeight;
 
@@ -127,6 +128,11 @@ uint16_t  *plTextFont::IInitFontTexture()
 
     SelectObject( hDC, hBitmap );
     SelectObject( hDC, hFont );
+
+    TEXTMETRICW textMetric = { 0 };
+    GetTextMetricsW(hDC, &textMetric);
+    fFontBaseline = textMetric.tmDescent;
+    fFontFullHeight = textMetric.tmHeight;
 
     // Set text colors
     SetTextColor( hDC, RGB( 255, 255, 255 ) );

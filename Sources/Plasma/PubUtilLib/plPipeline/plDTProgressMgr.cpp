@@ -196,7 +196,7 @@ bool    plDTProgressMgr::IDrawTheStupidThing(plPipeline *p, plOperationProgress 
     * (72 * 2) / 96 to translate the intended line spacing out of font
     * space and into device render space.
     */
-    uint16_t downsz = (text.GetFontHeight() * 1.50f) + (4 * scale);
+    uint16_t downsz = text.GetFontBaseline() + (15 * scale);
 
     // draw the title
     if (!prog->GetTitle().empty()) {
@@ -229,6 +229,9 @@ bool    plDTProgressMgr::IDrawTheStupidThing(plPipeline *p, plOperationProgress 
 
         drew_something = true;
     }
+
+    int16_t fontAscent = text.GetFontFullHeight() - text.GetFontBaseline();
+    y += (12 * scale) - fontAscent;
 
     // draw the left justified status text
     if (!prog->GetStatusText().empty()) {

@@ -93,6 +93,8 @@ class plTextFont
         uint16_t  fSize;
         bool    fInitialized;
         uint16_t  fFontHeight;
+        uint16_t fFontBaseline;
+        uint16_t fFontFullHeight;
         
         plPipeline  *fPipe;
 
@@ -134,6 +136,8 @@ class plTextFont
         uint32_t  GetFontSize() { return fSize; }
 
         uint16_t  GetFontHeight() { return fFontHeight; }
+        uint16_t  GetFontBaseline() { return fFontBaseline; }
+        uint16_t  GetFontFullHeight() { return fFontFullHeight; }
 
         virtual void    DestroyObjects() = 0;
         virtual void    SaveStates() = 0;
