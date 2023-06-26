@@ -136,6 +136,7 @@ elseif(APPLE)
     set_source_files_properties(${plClient_SHADERS} PROPERTIES LANGUAGE METAL)
     source_group("Metal Shaders" FILES ${plClient_SHADERS})
     set(plClient_SOURCES ${plClient_SOURCES} ${plClient_SHADERS})
+    
     list(APPEND plClient_RESOURCES
         win32/res/resource.h
         win32/res/banner.bmp
@@ -163,6 +164,7 @@ if(APPLE)
         XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=RelWithDebInfo] "INCLUDE_SOURCE";
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
+        XCODE_ATTRIBUTE_MTL_HEADER_SEARCH_PATHS ${Plasma_SOURCE_DIR}/Sources/Plasma/NucleusLib/inc/;
     )
     target_compile_options(plClient PRIVATE -fobjc-arc)
     target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
