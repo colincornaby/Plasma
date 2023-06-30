@@ -77,6 +77,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #import "PLSView.h"
 #import <QuartzCore/QuartzCore.hpp>
 #include "plNetClient/plNetClientMgr.h"
+#include "plMessage/plDisplayScaleChangedMsg.h"
 #define PARABLE_NORMAL_EXIT     0   // i.e. exited WinMain normally
 
 #include "StringTheory_NSString.h"
@@ -88,8 +89,6 @@ extern bool gDataServerLocal;
 extern bool gSkipPreload;
 
 bool NeedsResolutionUpdate = false;
-CGSize renderSize;
-CGFloat renderScale;
 
 std::vector<ST::string> args;
 
@@ -116,6 +115,8 @@ void plClient::IResizeNativeDisplayDevice(int width, int height, bool windowed) 
         if(((appDelegate.window.styleMask & NSWindowStyleMaskFullScreen) > 0) == windowed) {
             [appDelegate.window toggleFullScreen:nil];
         }
+        auto* msg = new plDisplayScaleChangedMsg(appDelegate.window.backingScaleFactor);
+        msg->Send();
     });
 }
 void plClient::IChangeResolution(int width, int height) {}
@@ -191,6 +192,8 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     
     [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
     [self.plsView setBoundsSize:self.plsView.bounds.size];
+    auto* msg = new plDisplayScaleChangedMsg(self.window.backingScaleFactor);
+    msg->Send();
     
     dispatch_async(loadingQueue, ^{
         [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
@@ -250,13 +253,13 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 - (void)renderView:(PLSView *)view didChangeOutputSize:(CGSize)size scale:(NSUInteger)scale
 {
     [[NSRunLoop mainRunLoop] performInModes:@[@"PlasmaEventMode"] block:^{
+        auto* msg = new plDisplayScaleChangedMsg(scale);
+        msg->Send();
         float aspectratio = (float)size.width / (float)size.height;
         pfGameGUIMgr::GetInstance()->SetAspectRatio( aspectratio );
-        plMouseDevice::Instance()->SetDisplayResolution(size.width/renderScale, size.height/renderScale);
+        plMouseDevice::Instance()->SetDisplayResolution(size.width, size.height);
         AppDelegate *appDelegate = (AppDelegate *)[NSApp delegate];
         appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
-        renderSize = size;
-        renderScale = scale;
     }];
     if(gClient->GetQuitIntro())
         [self runLoop];
