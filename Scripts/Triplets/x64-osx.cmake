@@ -9,8 +9,6 @@ set(VCPKG_OSX_ARCHITECTURES x86_64)
 # If you update this list, remember to synchronize x86-windows-plasma.cmake.
 set(_PLASMA_DYNAMIC_LIBRARIES
     cairo
-    python2
-    python3
 )
 
 cmake_policy(SET CMP0057 NEW)
