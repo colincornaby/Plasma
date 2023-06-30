@@ -7,6 +7,9 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
     vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 endif()
 
+# vcpkg on Windows is not setting version for some reason? Harcoding for now.
+set(VERSION "3.0.8")
+
 if (NOT "${VERSION}" MATCHES [[^([0-9]+)\.([0-9]+)\.([0-9]+)$]])
     message(FATAL_ERROR "Version regex did not match.")
 endif()
