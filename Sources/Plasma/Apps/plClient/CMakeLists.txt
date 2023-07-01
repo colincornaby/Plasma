@@ -165,6 +165,10 @@ if(APPLE)
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Debug] "YES";
         XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=RelWithDebInfo] "YES";
         XCODE_ATTRIBUTE_MTL_HEADER_SEARCH_PATHS ${Plasma_SOURCE_DIR}/Sources/Plasma/NucleusLib/inc/;
+        XCODE_ATTRIBUTE_INSTALL_PATH "/Applications";
+        XCODE_ATTRIBUTE_SKIP_INSTALL "NO";
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/Mac-Cocoa/plClient.entitlements;
+        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME "YES";
     )
     target_compile_options(plClient PRIVATE -fobjc-arc)
     target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
@@ -180,6 +184,13 @@ if(APPLE)
         TARGETS plClient
         DESTINATION client
     )
+    
+    if(PLASMA_APPLE_DEVELOPMENT_TEAM_ID)
+            set_target_properties(plClient PROPERTIES
+                XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development"
+                XCODE_ATTRIBUTE_DEVELOPMENT_TEAM ${PLASMA_APPLE_DEVELOPMENT_TEAM_ID}
+            )
+    endif()
 else()
     plasma_executable(plClient WIN32 CLIENT INSTALL_PDB
         SOURCES
