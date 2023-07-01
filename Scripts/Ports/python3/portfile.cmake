@@ -22,7 +22,6 @@ set(PATCHES
     0015-python-for-build.patch # Python 3.11: Use --with-build-python instead
     0016-osx-cross-build.patch
     0017-setup-search-paths.patch
-    0018-osx-static.patch
 )
 
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
@@ -32,6 +31,10 @@ endif()
 # Fix build failures with GCC for built-in modules (https://github.com/microsoft/vcpkg/issues/26573)
 if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND PATCHES 0011-gcc-ldflags-fix.patch)
+endif()
+
+if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(APPEND PATCHES 0018-osx-static.patch)
 endif()
 
 # Python 3.9 removed support for Windows 7. This patch re-adds support for Windows 7 and is therefore
