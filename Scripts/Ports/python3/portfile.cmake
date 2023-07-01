@@ -20,7 +20,6 @@ set(PATCHES
     0013-configure-no-libcrypt.patch  # https://github.com/python/cpython/pull/28881
     0014-fix-get-python-inc-output.patch
     0015-python-for-build.patch # Python 3.11: Use --with-build-python instead
-    0016-osx-cross-build.patch
     0017-setup-search-paths.patch
 )
 
@@ -34,7 +33,10 @@ if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    list(APPEND PATCHES 0018-osx-static.patch)
+    list(APPEND PATCHES
+        0018-osx-static.patch
+        0016-osx-cross-build.patch
+    )
 endif()
 
 # Python 3.9 removed support for Windows 7. This patch re-adds support for Windows 7 and is therefore
