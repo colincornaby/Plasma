@@ -116,8 +116,23 @@ elseif(APPLE)
         Mac-Cocoa/banner.png
         Mac-Cocoa/banner@2x.png
         win32/res/Dirt.ICO
+    ) 
+    #shaders need to be compiled as part of the app
+    #this could change in the future, but for now the Metal code expects the library to be compiled in the app
+    set(plClient_SHADERS
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/FixedPipelineShaders.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/PlateShaders.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/BiasNormals.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/CompCosines.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveSet7.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/Grass.metal
+	../../FeatureLib/pfMetalPipeline/ShaderSrc/WaveDecEnv.metal
     )
-    
+    set_source_files_properties(${plClient_SHADERS} PROPERTIES LANGUAGE METAL)
+    source_group("Metal Shaders" FILES ${plClient_SHADERS})
+    set(plClient_SOURCES ${plClient_SOURCES} ${plClient_SHADERS})
+    include_directories("../../FeatureLib/pfMetalPipeline/metal-cpp"
+                        "../../FeatureLib/pfMetalPipeline/ShaderSrc")
     list(APPEND plClient_RESOURCES
         win32/res/Dirt.ICO
     )
@@ -239,6 +254,7 @@ target_link_libraries(
         pfPython
         $<$<BOOL:${PLASMA_PIPELINE_DX}>:pfDXPipeline>
         $<$<BOOL:${PLASMA_PIPELINE_GL}>:pfGLPipeline>
+        $<$<BOOL:${PLASMA_PIPELINE_METAL}>:pfMetalPipeline>
         CURL::libcurl
 )
 target_include_directories(plClient PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
