@@ -42,7 +42,7 @@ target_link_libraries(pfMetalPipeline
         pnFactory
 )
 target_include_directories(pfMetalPipeline PUBLIC "metal-cpp")
-target_include_directories(pfMetalPipeline PRIVATE "ShaderSrc")
+target_include_directories(pfMetalPipeline PUBLIC "ShaderSrc")
 
 source_group("Source Files" FILES ${pfMetalPipeline_SOURCES})
 source_group("Header Files" FILES ${pfMetalPipeline_HEADERS})
