@@ -133,6 +133,7 @@ void plMetalMaterialShaderRef::FastEncodeArguments(MTL::RenderCommandEncoder* en
      UBOs in theory are more efficient. So we either need to figure out how to do UBOs
      or finally delete this code for good.
      */
+    
     for (uint32_t i = GetPassIndex(pass); i < GetPassIndex(pass) + fPassLengths[pass]; i++) {
         plLayerInterface* layer = fMaterial->GetLayer(i);
 
@@ -264,15 +265,21 @@ void plMetalMaterialShaderRef::ILoopOverLayers()
         passDescription.CacheHash();
         fFragmentShaderDescriptions.push_back(passDescription);
 
-        std::vector<plLayerInterface*> layers(j);
+        std::vector<plLayerInterface*> layers(j + fMaterial->GetNumPiggyBacks());
 
         pass++;
 
+        int layerOffset;
         // encode the colors for this pass into our buffer for fast rendering
         for (int layerOffset = 0; layerOffset < j - currLayer; layerOffset++) {
             plLayerInterface* layer = fMaterial->GetLayer(currLayer + layerOffset);
             layers[layerOffset] = layer;
             IBuildLayerTexture(NULL, layerOffset, layer);
+        }
+        for (int piggyback = 0; piggyback < fMaterial->GetNumPiggyBacks(); piggyback++) {
+            plLayerInterface* layer = fMaterial->GetPiggyBack(piggyback);
+            layers[layerOffset + piggyback] = layer;
+            IBuildLayerTexture(NULL, layerOffset + piggyback, layer);
         }
 
         fPasses.push_back(layers);

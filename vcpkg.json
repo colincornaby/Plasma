@@ -8,10 +8,13 @@
       "expat",
       {
         "name": "fontconfig",
-        "platform": "!(osx | windows)"
+        "platform": "!(osx | windows | ios)"
       },
       "freetype",
-      "libepoxy",
+      {
+        "name": "libepoxy",
+        "platform": "!(ios)"
+      },
       "libjpeg-turbo",
       "libogg",
       "libpng",

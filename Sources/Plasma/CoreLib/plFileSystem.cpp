@@ -68,6 +68,10 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #
 #   include <CoreFoundation/CoreFoundation.h>
 #   include <mach-o/dyld.h>
+#endif
+
+
+#ifdef HS_BUILD_FOR_MAC
 #   include <NSSystemDirectories.h>
 #endif
 
@@ -482,6 +486,7 @@ plFileName plFileSystem::GetUserDataPath()
         else
 #endif
         {
+#ifdef HS_BUILD_FOR_MAC
             IGNORE_WARNINGS_BEGIN("deprecated-declarations")
 
             NSSearchPathEnumerationState state;
@@ -489,6 +494,7 @@ plFileName plFileSystem::GetUserDataPath()
             state = NSGetNextSearchPathEnumeration(state, path);
 
             IGNORE_WARNINGS_END
+#endif
         }
 
         if (path[0] == '~') {

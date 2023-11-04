@@ -221,7 +221,7 @@ void plMetalTextFont::IDrawPrimitive(uint32_t count, plFontVertex *array)
     const uint maxCount = 4096 / (sizeof(plFontVertex) * 3);
     uint       drawm = 0;
     while (count > 0) {
-        uint drawCount = MIN(maxCount, count);
+        uint drawCount = fmin(maxCount, count);
         fPipeline->fDevice.CurrentRenderCommandEncoder()->setVertexBytes(array + (drawm * 3), drawCount * 3 * sizeof(plFontVertex), 0);
 
         fPipeline->fDevice.CurrentRenderCommandEncoder()->drawPrimitives(MTL::PrimitiveTypeTriangle, NS::UInteger(0), drawCount * 3);

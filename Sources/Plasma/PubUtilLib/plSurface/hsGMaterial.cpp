@@ -179,6 +179,11 @@ void hsGMaterial::RemoveLayer(plLayerInterface* lay, bool piggyBack)
         return;
 
     layers.erase(iter);
+    
+#if PLASMA_PIPELINE_GL || PLASMA_PIPELINE_METAL
+    if (fDeviceRef)
+        fDeviceRef->SetDirty(true);
+#endif
 }
 
 void hsGMaterial::InsertLayer(plLayerInterface* layer, int32_t which, bool piggyBack)
@@ -186,6 +191,10 @@ void hsGMaterial::InsertLayer(plLayerInterface* layer, int32_t which, bool piggy
     std::vector<plLayerInterface*>& layers = piggyBack ? fPiggyBacks : fLayers;
     hsAssert(which <= layers.size(), "Material layers Exceeding test depth");
     layers.insert(layers.cbegin() + which, layer);
+#if PLASMA_PIPELINE_GL || PLASMA_PIPELINE_METAL
+    if (fDeviceRef)
+        fDeviceRef->SetDirty(true);
+#endif
 }
 
 void hsGMaterial::SetLayer(plLayerInterface* layer, int32_t which, bool insert, bool piggyBack)
@@ -205,6 +214,10 @@ void hsGMaterial::SetLayer(plLayerInterface* layer, int32_t which, bool insert, 
         else
             layers.emplace_back(layer);
     }
+#if PLASMA_PIPELINE_GL || PLASMA_PIPELINE_METAL
+    if (fDeviceRef)
+        fDeviceRef->SetDirty(true);
+#endif
 }
 
 #if PLASMA_PIPELINE_GL || PLASMA_PIPELINE_METAL

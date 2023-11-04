@@ -90,33 +90,40 @@ if(WIN32)
         win32/res/headspin.ico
     )
 elseif(APPLE)
-    set(plClient_SOURCES ${plClient_SOURCES}
-        Mac-Cocoa/main.mm
-        Mac-Cocoa/NSString+StringTheory.mm
-        Mac-Cocoa/PLSKeyboardEventMonitor.mm
-        Mac-Cocoa/PLSView.mm
-        Mac-Cocoa/PLSLoginWindowController.mm
-        Mac-Cocoa/PLSPatcherWindowController.mm
-        Mac-Cocoa/PLSPatcher.mm
-        Mac-Cocoa/PLSServerStatus.mm
-    )
-    set(plClient_HEADERS ${plClient_HEADERS}
-        Mac-Cocoa/NSString+StringTheory.h
-        Mac-Cocoa/PLSKeyboardEventMonitor.h
-        Mac-Cocoa/PLSView.h
-        Mac-Cocoa/PLSLoginWindowController.h
-        Mac-Cocoa/PLSPatcherWindowController.h
-        Mac-Cocoa/PLSPatcher.h
-        Mac-Cocoa/PLSServerStatus.h
-    )
-    set(RESOURCES 
-        Mac-Cocoa/MainMenu.xib
-        Mac-Cocoa/PLSLoginWindowController.xib
-        Mac-Cocoa/PLSPatcherWindowController.xib
-        Mac-Cocoa/banner.png
-        Mac-Cocoa/banner@2x.png
-        win32/res/Dirt.ICO
-    ) 
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        set(plClient_SOURCES ${plClient_SOURCES}
+            Mac-Cocoa/main.mm
+            Mac-Cocoa/NSString+StringTheory.mm
+            Mac-Cocoa/PLSKeyboardEventMonitor.mm
+            Mac-Cocoa/PLSView.mm
+            Mac-Cocoa/PLSLoginWindowController.mm
+            Mac-Cocoa/PLSPatcherWindowController.mm
+            Mac-Cocoa/PLSPatcher.mm
+            Mac-Cocoa/PLSServerStatus.mm
+        )
+        set(plClient_HEADERS ${plClient_HEADERS}
+            Mac-Cocoa/NSString+StringTheory.h
+            Mac-Cocoa/PLSKeyboardEventMonitor.h
+            Mac-Cocoa/PLSView.h
+            Mac-Cocoa/PLSLoginWindowController.h
+            Mac-Cocoa/PLSPatcherWindowController.h
+            Mac-Cocoa/PLSPatcher.h
+            Mac-Cocoa/PLSServerStatus.h
+        )
+        set(RESOURCES
+            Mac-Cocoa/MainMenu.xib
+            Mac-Cocoa/PLSLoginWindowController.xib
+            Mac-Cocoa/PLSPatcherWindowController.xib
+            Mac-Cocoa/banner.png
+            Mac-Cocoa/banner@2x.png
+            win32/res/Dirt.ICO
+        )
+    endif()
+    if(CMAKE_SYSTEM_NAME MATCHES "iOS")
+        set(plClient_SOURCES ${plClient_SOURCES}
+            Apple-SwiftUI/PlasmaApp.swift
+        )
+    endif()
     #shaders need to be compiled as part of the app
     #this could change in the future, but for now the Metal code expects the library to be compiled in the app
     set(plClient_SHADERS
@@ -160,7 +167,7 @@ if(APPLE)
         MACOSX_BUNDLE_GUI_IDENTIFIER org.Huru.UruExplorer
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
-        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
+        $<$<PLATFORM_ID:Darwin>XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon>
         XCODE_ATTRIBUTE_MTL_FAST_MATH "YES"
         XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=Debug] "INCLUDE_SOURCE"
         XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO[variant=RelWithDebInfo] "INCLUDE_SOURCE"
@@ -169,7 +176,7 @@ if(APPLE)
         XCODE_ATTRIBUTE_MTL_HEADER_SEARCH_PATHS ${Plasma_SOURCE_DIR}/Sources/Plasma/NucleusLib/inc/
         XCODE_ATTRIBUTE_INSTALL_PATH "/Applications"
         XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
-        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/Mac-Cocoa/plClient.entitlements
+        $<$<PLATFORM_ID:Darwin>XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/Mac-Cocoa/plClient.entitlements>
         XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME "YES"
     )
     target_compile_options(plClient PRIVATE -fobjc-arc)
@@ -179,7 +186,9 @@ if(APPLE)
     )
     target_include_directories(plClient PRIVATE "../../FeatureLib/pfMetalPipeline/metal-cpp"
                                         PRIVATE "../../FeatureLib/pfMetalPipeline/ShaderSrc")
-    target_link_libraries(plClient PRIVATE "-framework Cocoa")
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        target_link_libraries(plClient PRIVATE "-framework Cocoa")
+    endif()
     target_link_libraries(plClient PRIVATE "-framework QuartzCore")
     target_link_libraries(plClient PRIVATE "-framework MetalPerformanceShaders")
     install(
