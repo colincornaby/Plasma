@@ -138,6 +138,7 @@ if(APPLE)
     list(FILTER plClient_XCODE_RESOURCES EXCLUDE REGEX "\\.x(ib|cassets)$")
 
     set_target_properties(plClient PROPERTIES
+        BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Mac-Cocoa/Info.plist.in"
         # Hard coding the app name here intentionally.
         # Should prevent macOS from tripping over secured resources being
@@ -164,10 +165,6 @@ if(APPLE)
     target_sources(plClient PRIVATE Mac-Cocoa/Assets.xcassets)
     set_source_files_properties(Mac-Cocoa/Assets.xcassets ${RESOURCES} PROPERTIES
          MACOSX_PACKAGE_LOCATION Resources
-    )
-    install(
-        TARGETS plClient
-        DESTINATION client
     )
     
     if(${CMAKE_VERSION} VERSION_LESS 3.28)
