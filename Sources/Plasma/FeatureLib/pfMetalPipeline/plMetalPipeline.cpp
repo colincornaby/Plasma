@@ -1621,11 +1621,11 @@ bool plMetalPipeline::IHandleMaterialPass(hsGMaterial* material, uint32_t pass, 
         lay = IPopOverAllLayer(lay);
         lay = IPopOverBaseLayer(lay);
 
-        if (numActivePiggyBacks == 0 && fOverBaseLayer == nullptr && fOverAllLayer == nullptr) {
-            mRef->FastEncodeArguments(fDevice.CurrentRenderCommandEncoder(), fCurrentRenderPassUniforms, pass);
+        //if (numActivePiggyBacks == 0 && fOverBaseLayer == nullptr && fOverAllLayer == nullptr) {
+          //  mRef->FastEncodeArguments(fDevice.CurrentRenderCommandEncoder(), fCurrentRenderPassUniforms, pass);
 
-            fragmentShaderDescription = mRef->GetFragmentShaderDescription(pass);
-        } else {
+         //   fragmentShaderDescription = mRef->GetFragmentShaderDescription(pass);
+        //} else {
             // Plasma pulls piggybacks from the rear first, pull the number of active piggybacks
             auto firstPiggyback = fPiggyBackStack.end() - numActivePiggyBacks;
             auto lastPiggyback = fPiggyBackStack.end();
@@ -1655,9 +1655,14 @@ bool plMetalPipeline::IHandleMaterialPass(hsGMaterial* material, uint32_t pass, 
                                   &subPiggybacks,
                                   preEncodeTransform,
                                   postEncodeTransform);
+        //}
+        
+        if(!fragmentShaderDescription.fUsePerPixelLighting)
+        {
+            fragmentShaderDescription.fUsePerPixelLighting = PLASMA_FORCE_PER_PIXEL_LIGHTING;
         }
         
-        fLightingPerPixel = fragmentShaderDescription.fUsePerPixelLighting = PLASMA_FORCE_PER_PIXEL_LIGHTING;
+        fLightingPerPixel = fragmentShaderDescription.fUsePerPixelLighting;
 
         plMetalDevice::plMetalLinkedPipeline* linkedPipeline = plMetalMaterialPassPipelineState(&fDevice, vRef, fragmentShaderDescription).GetRenderPipelineState();
         const MTL::RenderPipelineState*       pipelineState = linkedPipeline->pipelineState;
@@ -1676,8 +1681,8 @@ void plMetalPipeline::IBindLights()
     size_t         lightSize = offsetof(plMetalLights, lampSources) + (sizeof(plMetalShaderLightSource) * fLights.count);
     
     // FIXME: These states should support dirtying instead of expense memcmps
-    if ( !(fState.fBoundLights.has_value() && fState.fBoundLights == fLights) ) {
-        fState.fBoundLights = fLights;
+    if ( !(fState.fBoundLights.has_value() && fState.fBoundLights == fLights) || fLightingPerPixel ) {
+        fState.fBoundLights.reset();
         if (fLightingPerPixel) {
             fDevice.CurrentRenderCommandEncoder()->setFragmentBytes(&fLights, sizeof(plMetalLights), FragmentShaderArgumentLights);
         } else {
@@ -1685,8 +1690,8 @@ void plMetalPipeline::IBindLights()
         }
     }
     
-    if ( !(fState.fBoundMaterialProperties.has_value() && fState.fBoundMaterialProperties == fCurrentRenderPassMaterialLighting) ) {
-        fState.fBoundMaterialProperties = fCurrentRenderPassMaterialLighting;
+    if ( !(fState.fBoundMaterialProperties.has_value() && fState.fBoundMaterialProperties == fCurrentRenderPassMaterialLighting) || fLightingPerPixel ) {
+        fState.fBoundMaterialProperties.reset();
         fDevice.CurrentRenderCommandEncoder()->setVertexBytes(&fDevice.fPipeline->fCurrentRenderPassMaterialLighting, sizeof(plMaterialLightingDescriptor), VertexShaderArgumentMaterialLighting);
         if (fLightingPerPixel) {
             fDevice.CurrentRenderCommandEncoder()->setFragmentBytes(&fDevice.fPipeline->fCurrentRenderPassMaterialLighting, sizeof(plMaterialLightingDescriptor), FragmentShaderArgumentMaterialLighting);
@@ -4375,4 +4380,6 @@ void plMetalPipeline::plMetalPipelineCurrentState::Reset()
     for (auto& layer : layerStates) {
         layer.clampFlag = hsGMatState::hsGMatClampFlags(-1);
     }
+    
+    memset(fTextures, 0, sizeof(fTextures));
 }

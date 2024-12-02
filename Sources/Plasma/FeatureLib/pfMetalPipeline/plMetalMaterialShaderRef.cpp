@@ -198,6 +198,15 @@ void plMetalMaterialShaderRef::EncodeArguments(MTL::RenderCommandEncoder* encode
             return postEncodeTransform(layer, index);
         }
     );
+    
+    if (fBumps[pass].has_value())
+    {
+        plLayerInterface *bumpLayer = fMaterial->GetLayer(fMaterial->GetNumLayers()-1);
+        passDescription->fUsePerPixelLighting = true;
+        passDescription->fHasBumpMap = true;
+        auto texture = (plMetalTextureRef*)bumpLayer->GetTexture()->GetDeviceRef();
+        encoder->setFragmentTexture(texture->fTexture, 7);
+    }
 
     encoder->setFragmentBytes(&uniforms, sizeof(plMetalFragmentShaderArgumentBuffer), FragmentShaderArgumentUniforms);
 }
@@ -293,12 +302,55 @@ void plMetalMaterialShaderRef::ILoopOverLayers()
 
         fPassIndices.push_back(currLayer);
         fPassLengths.push_back(j - currLayer);
+        
+        fBumps.push_back(IEatBumpmapLayers(j));
+        
         fNumPasses++;
 
 #if 0
         ISetFogParameters(fMaterial->GetLayer(iCurrMat));
 #endif
     }
+}
+
+std::optional<plMetalBumpMapping> plMetalMaterialShaderRef::IEatBumpmapLayers( uint32_t& layerIdx )
+{
+    
+    std::optional<plMetalBumpMapping> bumpMapping;
+    
+    // If there aren't enough layers left to support a bump map, return
+    if (!(layerIdx + 3 < fMaterial->GetNumLayers()))
+    {
+        return bumpMapping;
+    }
+    
+    // Does the next layer imply a bump map?
+    if (!(fMaterial->GetLayer(layerIdx)->GetMiscFlags() & hsGMatState::kMiscBumpChans))
+    {
+        return bumpMapping;
+    }
+    
+    printf("Bump map layer found!\n");
+    bumpMapping = plMetalBumpMapping();
+    // We have a bump map and it should occupy the next four layers
+    for (size_t bumpLayer = 0; bumpLayer < 4; bumpLayer++)
+    {
+        plLayerInterface* layer = fMaterial->GetLayer(layerIdx + bumpLayer);
+        uint32_t miscFlags = layer->GetMiscFlags();
+        switch( miscFlags & hsGMatState::kMiscBumpChans )
+        {
+        case hsGMatState::kMiscBumpDu:
+            bumpMapping.value().dTangentUIndex = layer->GetUVWSrc();
+        case hsGMatState::kMiscBumpDv:
+            bumpMapping.value().dTangentVIndex = layer->GetUVWSrc();
+        case hsGMatState::kMiscBumpDw:
+        default:
+            break;
+        }
+    }
+    
+    layerIdx+=4;
+    return bumpMapping;
 }
 
 const hsGMatState plMetalMaterialShaderRef::ICompositeLayerState(const plLayerInterface* layer) const
@@ -323,13 +375,24 @@ void plMetalMaterialShaderRef::IBuildLayerTexture(MTL::RenderCommandEncoder* enc
             // FIXME: Better way to address missing textures than null pointers
             encoder->setFragmentTexture(nullptr, FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer);
             encoder->setFragmentTexture(nullptr, FragmentShaderArgumentAttributeTextures + offsetFromRootLayer);
+            fPipeline->fState.fTextures[FragmentShaderArgumentAttributeTextures + offsetFromRootLayer] = nullptr;
+            fPipeline->fState.fTextures[FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer] = nullptr;
+            
             return;
         }
         hsAssert(offsetFromRootLayer <= 8, "Too many layers requested");
         if (plCubicEnvironmap::ConvertNoRef(texture) != nullptr || plCubicRenderTarget::ConvertNoRef(texture) != nullptr) {
-            encoder->setFragmentTexture(deviceTexture->fTexture, FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer);
+            MTL::Texture* currentTexture = fPipeline->fState.fTextures[FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer];
+            if (currentTexture != deviceTexture->fTexture) {
+                encoder->setFragmentTexture(deviceTexture->fTexture, FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer);
+                fPipeline->fState.fTextures[FragmentShaderArgumentAttributeCubicTextures + offsetFromRootLayer] = deviceTexture->fTexture;
+            }
         } else if (plMipmap::ConvertNoRef(texture) != nullptr || plRenderTarget::ConvertNoRef(texture) != nullptr) {
-            encoder->setFragmentTexture(deviceTexture->fTexture, FragmentShaderArgumentAttributeTextures + offsetFromRootLayer);
+            MTL::Texture* currentTexture = fPipeline->fState.fTextures[FragmentShaderArgumentAttributeTextures + offsetFromRootLayer];
+            if (currentTexture != deviceTexture->fTexture) {
+                encoder->setFragmentTexture(deviceTexture->fTexture, FragmentShaderArgumentAttributeTextures + offsetFromRootLayer);
+                fPipeline->fState.fTextures[FragmentShaderArgumentAttributeTextures + offsetFromRootLayer] = deviceTexture->fTexture;
+            }
         }
 
         if (fPipeline->fState.layerStates[offsetFromRootLayer].clampFlag != layer->GetClampFlags()) {
