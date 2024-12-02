@@ -71,6 +71,7 @@ using namespace metal;
 
 constant const bool perPixelLighting [[ function_constant(FunctionConstantPerPixelLighting)    ]];
 constant const bool perVertexLighting = !perPixelLighting;
+constant const bool bumpMap [[ function_constant(FunctionConstantPerPixelBumpMap)    ]];
 
 constant const uint8_t sourceType1 [[ function_constant(FunctionConstantSources + 0)    ]];
 constant const uint8_t sourceType2 [[ function_constant(FunctionConstantSources + 1)    ]];
@@ -167,6 +168,7 @@ typedef struct
     float3 texCoord6 [[ function_constant(hasLayer6) ]];
     float3 texCoord7 [[ function_constant(hasLayer7) ]];
     float3 texCoord8 [[ function_constant(hasLayer8) ]];
+    float3 T, B [[ function_constant(bumpMap) ]];
     half4 vtxColor   [[ centroid_perspective ]];
     half4 fogColor;
 } ColorInOut;
@@ -182,7 +184,8 @@ half4 calcLitMaterialColor(constant plMetalLights & lights,
                            const half4 materialColor,
                            constant plMaterialLightingDescriptor & materialLighting,
                            const float4 position,
-                           const float3 normal)
+                           const float3 normal
+                           )
 {
     half3 LAmbient = half3(0.h, 0.h, 0.h);
     half3 LDiffuse = half3(0.h, 0.h, 0.h);
@@ -277,6 +280,9 @@ vertex ColorInOut pipelineVertexShader(Vertex in [[stage_in]],
         (&out.texCoord1)[layer] = uniforms.sampleLocation(layer, &in.texCoord1, normal, vCamPosition);
     }
 
+    out.T = normalize( uniforms.localToWorldMatrix * float4(in.texCoord2, 0.f)). xyz;
+    out.B = normalize( uniforms.localToWorldMatrix * float4(in.texCoord2, 0.f)). xyz;
+    
     out.position = vCamPosition * uniforms.projectionMatrix;
 
     return out;
@@ -442,9 +448,33 @@ half4 FragmentShaderArguments::sampleLayer(const size_t index, const half4 verte
 fragment half4 pipelineFragmentShader(ColorInOut in [[stage_in]],
                                       const FragmentShaderArguments fragmentShaderArgs,
                                       constant plMetalLights & lights      [[ buffer(FragmentShaderArgumentLights), function_constant(perPixelLighting) ]],
-                                      constant plMaterialLightingDescriptor & materialLighting   [[ buffer(FragmentShaderArgumentMaterialLighting), function_constant(perPixelLighting) ]])
+                                      constant plMaterialLightingDescriptor & materialLighting   [[ buffer(FragmentShaderArgumentMaterialLighting), function_constant(perPixelLighting) ]],
+                                      texture2d<half> bumpTexture  [[ texture(FragmentShaderArgumentAttributeBumpMapTexture), function_constant(bumpMap)    ]])
 {
-    const half4 lightingContributionColor = perPixelLighting ? calcLitMaterialColor(lights, in.vtxColor, materialLighting, in.worldPos, in.normal) : in.vtxColor;
+    half4 lightingContributionColor = half4(0.h);
+    
+    constexpr bool bumpMapIsAdditive = false;
+    const bool performBaseLighting = bumpMapIsAdditive || !bumpMap;
+    
+    if(performBaseLighting) {
+        lightingContributionColor = perPixelLighting ? calcLitMaterialColor(lights, in.vtxColor, materialLighting, in.worldPos, in.normal) : in.vtxColor;
+    }
+    
+    if(bumpMap) {
+        float3 sampleCoord = in.texCoord1;
+        half3 bumpNormal = bumpTexture.sample(fragmentShaderArgs.samplers, sampleCoord.xy).rgb;
+        
+        bumpNormal -= 0.5f;
+        bumpNormal *= 2.f;
+        
+        float3x3 TBN = float3x3(in.T, in.B, in.normal);
+        bumpNormal = half3(normalize(TBN * float3(bumpNormal)));
+        
+        if(performBaseLighting) {
+            bumpNormal.z = 0.f;
+        }
+        lightingContributionColor += perPixelLighting ? calcLitMaterialColor(lights, in.vtxColor, materialLighting, in.worldPos, float3(bumpNormal)) : in.vtxColor;
+    }
     half4 currentColor = lightingContributionColor;
 
     /*
@@ -601,6 +631,7 @@ constexpr void blend(half4 srcSample, thread half4 &destSample, const uint32_t b
         }
     }
 }
+
 
 vertex ShadowCasterInOut shadowVertexShader(Vertex in                       [[stage_in]],
                                        constant VertexUniforms & uniforms   [[ buffer(    VertexShaderArgumentFixedFunctionUniforms) ]])

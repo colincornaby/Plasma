@@ -48,6 +48,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #include "ShaderTypes.h"
 #include "plMetalDevice.h"
+#include "pfMetalPipeline/plMetalPipelineState.h"
 #include "plPipeline/hsG3DDeviceSelector.h"
 #include "plPipeline/pl3DPipeline.h"
 
@@ -293,6 +294,7 @@ private:
         std::optional<plMetalLights>                   fBoundLights;
         std::optional<plMaterialLightingDescriptor>    fBoundMaterialProperties;
         std::optional<VertexUniforms>                  fCurrentVertexUniforms;
+        MTL::Texture*                                  fTextures[16];
 
         void Reset();
         
