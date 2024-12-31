@@ -58,6 +58,7 @@ set(pfMetalPipeline_SHADERS
     ShaderSrc/Clear.metal
     ShaderSrc/GammaCorrection.metal
     ShaderSrc/TextFontShader.metal
+    ShaderSrc/Skinning.metal
 )
 
 plasma_library(pfMetalPipeline

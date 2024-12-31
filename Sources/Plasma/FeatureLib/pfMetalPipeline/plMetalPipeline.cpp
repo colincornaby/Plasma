@@ -1968,7 +1968,7 @@ bool plMetalPipeline::ICheckDynBuffers(plDrawableSpans* drawable, plGBufferGroup
 bool plMetalPipeline::IRefreshDynVertices(plGBufferGroup* group, plMetalVertexBufferRef* vRef)
 {
     ptrdiff_t size = (group->GetVertBufferEnd(vRef->fIndex) - group->GetVertBufferStart(vRef->fIndex)) * vRef->fVertexSize;
-    if (!size)
+    if (!size || !vRef->IsDirty())
         return false; // No error, just nothing to do.
 
     hsAssert(size > 0, "Bad start and end counts in a group");
@@ -4099,6 +4099,15 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
             drawable->SetBlendingSpanVectorBit(visList[i], false);
         }
     }
+    
+#define PF_USE_GPU_VERTEX_BLENDING 1
+    
+#if PF_USE_GPU_VERTEX_BLENDING
+    MTL::CommandBuffer* commandBuffer = fDevice.fCommandQueue->commandBuffer();
+    commandBuffer->setLabel(MTLSTR("Skinning compute pass"));
+    commandBuffer->enqueue();
+    MTL::ComputeCommandEncoder* encoder = commandBuffer->computeCommandEncoder();
+#endif
 
     // Now go through each of the group/buffer (= a real vertex buffer) pairs we found,
     // and blend into it. We'll lock the buffer once, and then for each span that
@@ -4114,17 +4123,50 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                 hsAssert(vRef->fData, "Going into skinning with no place to put results!");
 
                 uint8_t* destPtr = vRef->fData;
+                
+#if PF_USE_GPU_VERTEX_BLENDING
+                uint8_t* ptr = vRef->fOwner->GetVertBufferData(vRef->fIndex);
+                
+                MTL::Buffer* destBuffer = vRef->GetBuffer();
+                if(!destBuffer) {
+                    destBuffer = fDevice.fMetalDevice->newBuffer(vRef->fData, vRef->fCount * vRef->fVertexSize, MTL::ResourceStorageModeManaged);
+                    vRef->SetBuffer(destBuffer);
+                }
+                encoder->setBuffer(destBuffer, 0, 2);
+                
+                MTL::Buffer* srcBuffer = vRef->fBackingBuffer;
+                if(!srcBuffer) {
+                    srcBuffer = fDevice.fMetalDevice->newBuffer(ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex), MTL::ResourceStorageModeManaged);
+                    vRef->fBackingBuffer = srcBuffer;
+                } else if (vRef->IsDirty()) {
+                    memcpy(srcBuffer->contents(), ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
+                    srcBuffer->didModifyRange(NS::Range(0, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
+                }
+                encoder->setBuffer(srcBuffer, 0, 0);
+#endif
 
                 int k;
                 for (k = 0; k < visList.size(); k++) {
                     const plIcicle& span = *(plIcicle*)spans[visList[k]];
                     if (span.fGroupIdx == i && span.fVBufferIdx == j) {
                         plProfile_Inc(NumSkin);
-
+                        
                         hsMatrix44* matrixPalette = drawable->GetMatrixPalette(span.fBaseMatrix);
                         matrixPalette[0] = span.fLocalToWorld;
-
+                        
+#if PF_USE_GPU_VERTEX_BLENDING
+                        MTL::Buffer* matrixPaletteBuffer = fDevice.fMetalDevice->newBuffer((void *)matrixPalette, sizeof(hsMatrix44) * (span.fNumMatrices + 1), MTL::ResourceStorageModeManaged);
+                        encoder->setBuffer(matrixPaletteBuffer, 0, 1);
+                        
+                        IBlendVertBufferMetal( vRef->fOwner->GetVertexFormat(), vRef->fOwner->GetVertexSize(), vRef->fVertexSize, span.fVLength,  span.fVStartIdx * vRef->fOwner->GetVertexSize(), span.fVStartIdx * vRef->fVertexSize, encoder);
+                        vRef->SetDirty(false);
+                        
+                        matrixPaletteBuffer->release();
+                        
+#else
+                        
                         uint8_t* ptr = vRef->fOwner->GetVertBufferData(vRef->fIndex);
+                        
                         ptr += span.fVStartIdx * vRef->fOwner->GetVertexSize();
                         IBlendVertBuffer((plSpan*)&span,
                                          matrixPalette, span.fNumMatrices,
@@ -4136,12 +4178,18 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                                          span.fVLength,
                                          span.fLocalUVWChans);
                         vRef->SetDirty(true);
+#endif
                     }
                 }
                 // Unlock and move on.
             }
         }
     }
+    
+#if PF_USE_GPU_VERTEX_BLENDING
+    encoder->endEncoding();
+    commandBuffer->commit();
+#endif
 
     plProfile_EndTiming(Skin);
 
@@ -4152,6 +4200,99 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
     }
 
     return true;
+}
+
+
+void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
+                                            uint32_t destStride, uint32_t count,
+                             size_t srcOffset, size_t destOffset, MTL::ComputeCommandEncoder* encoder)
+{
+    struct SkinningUniforms {
+        uint32_t destinationVerticesStride;
+    };
+    int32_t numWeights = (format & plGBufferGroup::kSkinWeightMask) >> 4;
+    
+    struct SkinningUniforms uniforms;
+    uniforms.destinationVerticesStride = destStride;
+    bool hasSkinIndices = format & plGBufferGroup::kSkinIndices;
+    
+    static MTL::ComputePipelineState* pipelineState[4][2] = { 0 };
+    if(!pipelineState[numWeights][hasSkinIndices]) {
+        MTL::Library* library = fDevice.GetShaderLibrary();
+        MTL::FunctionConstantValues* constantValues = MTL::FunctionConstantValues::alloc()->init();
+        constantValues->setConstantValue((void *)&numWeights, MTL::DataTypeInt, (int)0);
+        constantValues->setConstantValue((void *)&hasSkinIndices, MTL::DataTypeBool, (int)1);
+        MTL::Function* skinningFunction =  library->newFunction(NS::MakeConstantString("SkinningFunction"), constantValues, (NS::Error**)nullptr);
+        MTL::ComputePipelineDescriptor* pipelineDescriptor = MTL::ComputePipelineDescriptor::alloc()->init();
+        pipelineDescriptor->setComputeFunction(skinningFunction);
+        pipelineDescriptor->buffers()->object(0)->setMutability(MTL::MutabilityImmutable);
+        pipelineDescriptor->buffers()->object(1)->setMutability(MTL::MutabilityImmutable);
+        pipelineDescriptor->buffers()->object(2)->setMutability(MTL::MutabilityImmutable);
+        pipelineDescriptor->buffers()->object(3)->setMutability(MTL::MutabilityImmutable);
+        
+        MTL::BufferLayoutDescriptor* layout = MTL::BufferLayoutDescriptor::alloc()->init();
+        layout->setStride(srcStride);
+        layout->setStepRate(1);
+        layout->setStepFunction(MTL::StepFunctionThreadPositionInGridX);
+        
+        MTL::StageInputOutputDescriptor* inOutDescriptor = MTL::StageInputOutputDescriptor::alloc()->init();
+        uint offset = 0;
+        inOutDescriptor->layouts()->setObject(layout, 0);
+        
+        MTL::AttributeDescriptor* positionAttribute = MTL::AttributeDescriptor::alloc()->init();
+        positionAttribute->setFormat(MTL::AttributeFormatFloat3);
+        positionAttribute->setOffset(offset);
+        positionAttribute->setBufferIndex(0);
+        inOutDescriptor->attributes()->setObject(positionAttribute, 0);
+        offset += sizeof(float) * 3;
+        
+        for(int i=0; i<numWeights; i++) {
+            MTL::AttributeDescriptor* weightAttribute = MTL::AttributeDescriptor::alloc()->init();
+            weightAttribute->setFormat(MTL::AttributeFormatFloat);
+            weightAttribute->setOffset(offset);
+            weightAttribute->setBufferIndex(0);
+            inOutDescriptor->attributes()->setObject(weightAttribute, 2+i);
+            offset += sizeof(float);
+        }
+        
+        if(hasSkinIndices) {
+            MTL::AttributeDescriptor* skinIndicesAttribute = MTL::AttributeDescriptor::alloc()->init();
+            skinIndicesAttribute->setFormat(MTL::AttributeFormatUInt);
+            skinIndicesAttribute->setOffset(offset);
+            skinIndicesAttribute->setBufferIndex(0);
+            inOutDescriptor->attributes()->setObject(skinIndicesAttribute, 5);
+            offset += sizeof(uint32_t);
+        }
+        
+        MTL::AttributeDescriptor* normalAttribute = MTL::AttributeDescriptor::alloc()->init();
+        normalAttribute->setFormat(MTL::AttributeFormatFloat3);
+        normalAttribute->setOffset(offset);
+        normalAttribute->setBufferIndex(0);
+        inOutDescriptor->attributes()->setObject(normalAttribute, 1);
+        offset += sizeof(float) * 3;
+        
+        pipelineDescriptor->setStageInputDescriptor(inOutDescriptor);
+        
+        std::string label = "Weights: ";
+        label.append(std::to_string(numWeights));
+        label.append(", hasSkinIndices: ");
+        label.append(std::to_string(hasSkinIndices));
+        pipelineDescriptor->setLabel(NS::String::string(label.c_str(), NS::UTF8StringEncoding));
+        NS::Error* error;
+        pipelineState[numWeights][hasSkinIndices] = fDevice.fMetalDevice->newComputePipelineState(pipelineDescriptor, MTL::PipelineOptionNone, nullptr, &error);
+        hsAssert(error == nullptr, "Error was not null");
+        skinningFunction->release();
+        library->release();
+    }
+    
+    encoder->setComputePipelineState(pipelineState[numWeights][hasSkinIndices]);
+    encoder->setBufferOffset(srcOffset, 0);
+    encoder->setBufferOffset(destOffset, 2);
+    encoder->setBytes(&uniforms, sizeof(SkinningUniforms), 3);
+    
+    MTL::Size threadsPerThreadgroup = MTL::Size(pipelineState[numWeights][hasSkinIndices]->maxTotalThreadsPerThreadgroup(), 1, 1);
+    
+    encoder->dispatchThreads(MTL::Size(count, 1, 1), threadsPerThreadgroup);
 }
 
 //// IBlendVertsIntoBuffer ////////////////////////////////////////////////////

@@ -217,6 +217,10 @@ private:
                           uint8_t* dest, uint32_t destStride, uint32_t count,
                           uint16_t localUVWChans);
 
+    void IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
+                               uint32_t destStride, uint32_t count,
+                size_t srcOffset, size_t destOffset, MTL::ComputeCommandEncoder* encoder);
+    
     plMetalVertexShader*   fVShaderRefList;
     plMetalFragmentShader* fPShaderRefList;
     bool                   IPrepShadowCaster(const plShadowCaster* caster);
