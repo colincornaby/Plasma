@@ -206,9 +206,12 @@ public:
                                fOwner(),
                                fData(),
                                fFormat(),
-                               fRefTime()
+                               fRefTime(),
+                               fBackingBuffer()
     {
     }
+    
+    MTL::Buffer* fBackingBuffer;
 
     virtual ~plMetalVertexBufferRef();
 
