@@ -1998,7 +1998,7 @@ bool plMetalPipeline::IRefreshDynVertices(plGBufferGroup* group, plMetalVertexBu
             // Only allow this resource to be volatile after the on screen command buffer.
             // It should not be freed after something like a shadow render command buffer.
             fDevice.GetCurrentDrawableCommandBuffer()->addCompletedHandler(^(MTL::CommandBuffer* buffer) {
-                vertexBuffer->setPurgeableState(MTL::PurgeableStateVolatile);
+                //vertexBuffer->setPurgeableState(MTL::PurgeableStateVolatile);
             });
         }
         vRef->SetBuffer(vertexBuffer);
@@ -4128,20 +4128,20 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                 uint8_t* ptr = vRef->fOwner->GetVertBufferData(vRef->fIndex);
                 
                 MTL::Buffer* destBuffer = vRef->GetBuffer();
-                //if(!destBuffer) {
-                    destBuffer = fDevice.fMetalDevice->newBuffer(vRef->fData, vRef->fCount * vRef->fVertexSize, MTL::ResourceStorageModeManaged);
+                const size_t destBufferSize = vRef->fCount * vRef->fVertexSize;
+                if(!destBuffer) {
+                    destBuffer = fDevice.fMetalDevice->newBuffer(vRef->fData, destBufferSize + vRef->fOwner->GetVertBufferSize(vRef->fIndex), MTL::ResourceStorageModeManaged);
+                    memcpy((char *)destBuffer->contents() + destBufferSize, ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
+                    destBuffer->didModifyRange(NS::Range(destBufferSize, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
                     vRef->SetBuffer(destBuffer);
-                //}
-                encoder->setBuffer(destBuffer, 0, 2);
-                
-                MTL::Buffer* srcBuffer = vRef->fBackingBuffer;
-                if(!srcBuffer) {
-                    srcBuffer = fDevice.fMetalDevice->newBuffer(ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex), MTL::ResourceStorageModeManaged);
-                    vRef->fBackingBuffer = srcBuffer;
-                } else if (vRef->IsDirty()) {
-                    //memcpy(srcBuffer->contents(), ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
-                    //srcBuffer->didModifyRange(NS::Range(0, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
+                } else if(vRef->IsDirty()) {
+                    memcpy((char *)destBuffer->contents() + destBufferSize, ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
+                    destBuffer->didModifyRange(NS::Range(destBufferSize, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
                 }
+                encoder->setBuffer(destBuffer, 0, 2);
+                destBuffer->setPurgeableState(MTL::PurgeableStateNonVolatile);
+                
+                MTL::Buffer* srcBuffer = destBuffer;
                 encoder->setBuffer(srcBuffer, 0, 0);
 #endif
 
@@ -4158,7 +4158,7 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                         MTL::Buffer* matrixPaletteBuffer = fDevice.fMetalDevice->newBuffer((void *)matrixPalette, sizeof(hsMatrix44) * (span.fNumMatrices + 1), MTL::ResourceStorageModeManaged);
                         encoder->setBuffer(matrixPaletteBuffer, 0, 1);
                         
-                        IBlendVertBufferMetal( vRef->fOwner->GetVertexFormat(), vRef->fOwner->GetVertexSize(), vRef->fVertexSize, span.fVLength,  span.fVStartIdx * vRef->fOwner->GetVertexSize(), span.fVStartIdx * vRef->fVertexSize, encoder);
+                        IBlendVertBufferMetal( vRef->fOwner->GetVertexFormat(), vRef->fOwner->GetVertexSize(), vRef->fVertexSize, span.fVLength,  destBufferSize + span.fVStartIdx * vRef->fOwner->GetVertexSize(), span.fVStartIdx * vRef->fVertexSize, encoder);
                         vRef->SetDirty(false);
                         
                         matrixPaletteBuffer->release();
@@ -4209,6 +4209,7 @@ void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
 {
     struct SkinningUniforms {
         uint32_t destinationVerticesStride;
+        uint32_t count;
     };
     int32_t numWeights = (format & plGBufferGroup::kSkinWeightMask) >> 4;
     
@@ -4222,7 +4223,7 @@ void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
         MTL::FunctionConstantValues* constantValues = MTL::FunctionConstantValues::alloc()->init();
         constantValues->setConstantValue((void *)&numWeights, MTL::DataTypeInt, (int)0);
         constantValues->setConstantValue((void *)&hasSkinIndices, MTL::DataTypeBool, (int)1);
-        MTL::Function* skinningFunction =  library->newFunction(NS::MakeConstantString("SkinningFunction"), constantValues, (NS::Error**)nullptr);
+        MTL::Function* skinningFunction =  library->newFunction(MTLSTR("SkinningFunction"), constantValues, (NS::Error**)nullptr);
         MTL::ComputePipelineDescriptor* pipelineDescriptor = MTL::ComputePipelineDescriptor::alloc()->init();
         pipelineDescriptor->setComputeFunction(skinningFunction);
         pipelineDescriptor->buffers()->object(0)->setMutability(MTL::MutabilityImmutable);
@@ -4272,6 +4273,7 @@ void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
         offset += sizeof(float) * 3;
         
         pipelineDescriptor->setStageInputDescriptor(inOutDescriptor);
+        pipelineDescriptor->setThreadGroupSizeIsMultipleOfThreadExecutionWidth(true);
         
         std::string label = "Weights: ";
         label.append(std::to_string(numWeights));
@@ -4288,11 +4290,12 @@ void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
     encoder->setComputePipelineState(pipelineState[numWeights][hasSkinIndices]);
     encoder->setBufferOffset(srcOffset, 0);
     encoder->setBufferOffset(destOffset, 2);
+    uniforms.count = count;
     encoder->setBytes(&uniforms, sizeof(SkinningUniforms), 3);
     
-    size_t maxThreadgroupSize = pipelineState[numWeights][hasSkinIndices]->maxTotalThreadsPerThreadgroup();
-    MTL::Size threadsPerThreadgroup = MTL::Size(maxThreadgroupSize > count ? count : maxThreadgroupSize, 1, 1);
-    
+    auto maxThreads = pipelineState[numWeights][hasSkinIndices]->maxTotalThreadsPerThreadgroup();
+    MTL::Size threadsPerThreadgroup = MTL::Size(maxThreads, 1, 1);
+    count = ((count / maxThreads) + 1) * maxThreads;
     encoder->dispatchThreads(MTL::Size(count, 1, 1), threadsPerThreadgroup);
 }
 
