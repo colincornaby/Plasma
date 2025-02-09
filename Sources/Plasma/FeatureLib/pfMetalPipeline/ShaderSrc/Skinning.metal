@@ -38,7 +38,7 @@ kernel void SkinningFunction(
                             constant hsMatrix* matrixPalette [[buffer(1)]],
                             device char* destinationVertices [[buffer(2)]],
                             constant SkinningUniforms & uniforms [[buffer(3)]],
-                            uint2 gid [[thread_position_in_grid]]
+                            uint index [[thread_position_in_grid]]
                             ) {
     float4 weights = {0};
     float weightSum = 0.f;
@@ -57,20 +57,41 @@ kernel void SkinningFunction(
     
     float4 destNorm = { 0.f, 0.f, 0.f, 0.f };
     float4 destPoints = { 0.f, 0.f, 0.f, 1.f };
+                               
+    /*
+     This is the weird part that prevents insanity.
+     If this if statement is not here, the output of this shader
+     will be corrupt - seemingly writing to the wrong indexes of the
+     output buffer.
+     
+     The if statement just has to touch index and not be optimizable out.
+     The specifics the skip test do not seem to matter.
+     
+     I can't find anywhere skip is actually followed in a thread. So the
+     if seems to be changing the output even though it should have no effect.
+     
+     Assuming the if is not followed, initial few possibilities:
+     - Maybe something is happening to index during shader compilation thats
+     causing it to be somehow corrupted and the if is changing how the shader
+     is compiled. This has never been observed in the debugger.
+     - Perhaps it's a syncronization issue and the if is disrupting the timing
+     of this shader just enough to bypass it.
+     */
+    //bool skip = index==UINT_MAX;
+    //if(skip)
+      //  return;
     
     for (int j = 0; j < numWeights + 1; ++j) {
-        int index = indices & 0xFF;
+        int matrixIndex = indices & 0xFF;
         if (weights[j]) {
-            const float4x4 matrix = matrixPalette[index].matrix;
-            destPoints.xyz = in.position.xyz;
-            destNorm.xyz = in.normal.xyz;
-            //destPoints.xyz += weights[j] * (float4(in.position, 1.0f) * matrix).xyz;
-            //destNorm.xyz += weights[j] * (float4(in.normal, 0.0f) * matrix).xyz;
+            const constant float4x4 &matrix = matrixPalette[matrixIndex].matrix;
+            destPoints.xyz += weights[j] * (float4(in.position, 1.0f) * matrix).xyz;
+            destNorm.xyz += weights[j] * (float4(in.normal, 0.0f) * matrix).xyz;
         }
         indices >>= 8;
     }
     
-    device packed_float3* dest = (device packed_float3*)(destinationVertices + (gid[0] * uniforms.destinationVerticesStride));
+    device packed_float3* dest = (device packed_float3*)(destinationVertices + (index * uniforms.destinationVerticesStride));
     dest[0] = destPoints.xyz;
     dest[1] = destNorm.xyz;
 }
