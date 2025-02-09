@@ -10,6 +10,7 @@ using namespace metal;
 
 struct SkinningUniforms {
     uint32_t destinationVerticesStride;
+    uint32_t count;
 };
 
 constant const int32_t numWeights [[ function_constant(0)    ]];
@@ -40,6 +41,9 @@ kernel void SkinningFunction(
                             constant SkinningUniforms & uniforms [[buffer(3)]],
                             uint index [[thread_position_in_grid]]
                             ) {
+                                if(uniforms.count <= index) {
+                                    return;
+                                }
     float4 weights = {0};
     float weightSum = 0.f;
     for (uint8_t j = 0; j < numWeights; ++j) {
