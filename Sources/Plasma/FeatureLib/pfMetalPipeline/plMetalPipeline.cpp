@@ -4128,10 +4128,10 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                 uint8_t* ptr = vRef->fOwner->GetVertBufferData(vRef->fIndex);
                 
                 MTL::Buffer* destBuffer = vRef->GetBuffer();
-                if(!destBuffer) {
+                //if(!destBuffer) {
                     destBuffer = fDevice.fMetalDevice->newBuffer(vRef->fData, vRef->fCount * vRef->fVertexSize, MTL::ResourceStorageModeManaged);
                     vRef->SetBuffer(destBuffer);
-                }
+                //}
                 encoder->setBuffer(destBuffer, 0, 2);
                 
                 MTL::Buffer* srcBuffer = vRef->fBackingBuffer;
@@ -4139,8 +4139,8 @@ bool plMetalPipeline::ISoftwareVertexBlend(plDrawableSpans* drawable, const std:
                     srcBuffer = fDevice.fMetalDevice->newBuffer(ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex), MTL::ResourceStorageModeManaged);
                     vRef->fBackingBuffer = srcBuffer;
                 } else if (vRef->IsDirty()) {
-                    memcpy(srcBuffer->contents(), ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
-                    srcBuffer->didModifyRange(NS::Range(0, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
+                    //memcpy(srcBuffer->contents(), ptr, vRef->fOwner->GetVertBufferSize(vRef->fIndex));
+                    //srcBuffer->didModifyRange(NS::Range(0, vRef->fOwner->GetVertBufferSize(vRef->fIndex)));
                 }
                 encoder->setBuffer(srcBuffer, 0, 0);
 #endif
@@ -4290,7 +4290,8 @@ void plMetalPipeline::IBlendVertBufferMetal(uint8_t format, uint32_t srcStride,
     encoder->setBufferOffset(destOffset, 2);
     encoder->setBytes(&uniforms, sizeof(SkinningUniforms), 3);
     
-    MTL::Size threadsPerThreadgroup = MTL::Size(pipelineState[numWeights][hasSkinIndices]->maxTotalThreadsPerThreadgroup(), 1, 1);
+    size_t maxThreadgroupSize = pipelineState[numWeights][hasSkinIndices]->maxTotalThreadsPerThreadgroup();
+    MTL::Size threadsPerThreadgroup = MTL::Size(maxThreadgroupSize > count ? count : maxThreadgroupSize, 1, 1);
     
     encoder->dispatchThreads(MTL::Size(count, 1, 1), threadsPerThreadgroup);
 }
