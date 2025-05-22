@@ -142,6 +142,8 @@ elseif(WIN32)
     find_package(VLD)
 endif()
 
+find_package(Vulkan)
+
 include(PythonUtils)
 include(PlasmaTargets)
 
@@ -154,6 +156,7 @@ endif(PLASMA_EXTERNAL_RELEASE)
 cmake_dependent_option(PLASMA_PIPELINE_DX "Enable DirectX rendering pipeline?" ON "DirectX_FOUND" OFF)
 cmake_dependent_option(PLASMA_PIPELINE_GL "Enable OpenGL rendering pipeline?" ON "TARGET epoxy::epoxy" OFF)
 cmake_dependent_option(PLASMA_PIPELINE_METAL "Enable Metal rendering pipeline?" ON "TARGET Metal::Metal" OFF)
+cmake_dependent_option(PLASMA_PIPELINE_VULKAN "Enable Vulkan rendering pipeline?" ON "Vulkan_FOUND" OFF)
 
 if(PLASMA_PIPELINE_DX)
     add_definitions(-DPLASMA_PIPELINE_DX)
@@ -167,6 +170,10 @@ if(PLASMA_PIPELINE_METAL)
     add_definitions(-DPLASMA_PIPELINE_METAL)
     enable_language(Metal)
 endif(PLASMA_PIPELINE_METAL)
+
+if(PLASMA_PIPELINE_VULKAN)
+    add_definitions(-DPLASMA_PIPELINE_VULKAN)
+endif(PLASMA_PIPELINE_VULKAN)
 
 # Allow us to disable certain parts of the build
 option(PLASMA_BUILD_CLIENT "Do we want to build plClient?" ON)
