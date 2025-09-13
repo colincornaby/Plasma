@@ -1,0 +1,16 @@
+name: "Make Universal macOS Binaries"
+description: "Merge two macOS build folders (different arch) into a universal binary output folder."
+author: "Private Repo Action"
+inputs:
+  folder1:
+    description: "Path to the first build folder (e.g., x86_64)"
+    required: true
+  folder2:
+    description: "Path to the second build folder (e.g., arm64)"
+    required: true
+  output:
+    description: "Path to the output universal folder"
+    required: true
+runs:
+  using: "node20"
+  main: "dist/index.js"

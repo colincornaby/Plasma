@@ -346,3 +346,36 @@ jobs:
         with:
           name: plasma-${{ matrix.platform.str }}-${{ matrix.cfg.str }}
           path: build/install
+          
+  mac-universal-binary:
+    runs-on: macos-latest
+    needs: [macos]
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Download x64 release
+      uses: actions/download-artifact@v4
+      with:
+        name: plasma-macos-x64-external-release
+        path: ./build-x86_64
+    
+    - name: Download arm64 release
+      uses: actions/download-artifact@v4
+      with:
+        name: plasma-macos-arm64-external-release
+        path: ./build-arm64
+      
+    - name: Make Universal
+      uses: ./.github/actions/create-universal-binaries
+      with:
+        folder1: build-x86_64
+        folder2: build-arm64
+        output: plasma-macos-universal-release
+    
+    - name: Upload Universal Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: plasma-macos-universal-release
+        path: plasma-macos-universal-release
