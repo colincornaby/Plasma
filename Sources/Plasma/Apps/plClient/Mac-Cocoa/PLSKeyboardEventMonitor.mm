@@ -59,12 +59,9 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
  */
 
 @interface PLSKeyboardEventMonitor ()
-{
-    plClientLoader* _gClient;
-}
 
 @property(weak) NSView* view;
-@property plInputManager* inputManager;
+@property plEventQueue* eventQueue;
 @property(retain) id localMonitor;
 @property BOOL capsLockKeyDown;
 
@@ -72,17 +69,11 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 @implementation PLSKeyboardEventMonitor
 
-- (plClientLoader&)gClient
-{
-    return *_gClient;
-}
-
-- (id)initWithView:(NSView*)view inputManager:(plClientLoader*)gClient
+- (id)initWithView:(NSView*)view eventQueue:(plEventQueue*)eventQueue
 {
     self = [super init];
     self.view = view;
-    _gClient = gClient;
-    self.inputManager = self.gClient->GetInputManager();
+    self.eventQueue = eventQueue;
 
     const NSEventMask eventMasks = NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
 
@@ -106,12 +97,12 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
             case NSEventTypeKeyDown:
             case NSEventTypeKeyUp:
             case NSEventTypeFlagsChanged: {
-                if (self.gClient->GetQuitIntro() == false) {
-                    self.gClient->SetQuitIntro(true);
-                    return true;
-                } else {
+                //if (self.gClient->GetQuitIntro() == false) {
+                 //   self.gClient->SetQuitIntro(true);
+                 //   return true;
+                //} else {
                     return [self processKeyEvent:event];
-                }
+                //}
                 break;
             }
             default:
@@ -156,7 +147,9 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     BOOL capsLockMaskPresent = (event.modifierFlags & NSEventModifierFlagCapsLock) != 0;
     if (capsLockMaskPresent != self.capsLockKeyDown) {
         self.capsLockKeyDown = capsLockMaskPresent;
-        self.inputManager->HandleKeyEvent((plKeyDef)kVK_CapsLock, self.capsLockKeyDown, false);
+        _eventQueue->AddEvent(^(const plEventQueueContext &context) {
+            context.inputManager->HandleKeyEvent((plKeyDef)kVK_CapsLock, self.capsLockKeyDown, false);
+        });
     }
     
     /*
@@ -176,22 +169,28 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
         return NO;
     }
 
-    @synchronized(self.view.layer) {
-        // Caps lock modifer has special handling that was earlier
-        if (keycode != kVK_CapsLock) {
-            self.inputManager->HandleKeyEvent(
+    // Caps lock modifer has special handling that was earlier
+    if (keycode != kVK_CapsLock) {
+        _eventQueue->AddEvent(^(const plEventQueueContext &context) {
+            if ((*(context.client))->GetQuitIntro() == false) {
+                (*(context.client))->SetQuitIntro(true);
+                return;
+            }
+            context.inputManager->HandleKeyEvent(
                                               (plKeyDef)keycode, down, event.type == NSEventTypeFlagsChanged ? false : event.ARepeat);
-        }
-        if (!(modifierFlags & NSEventModifierFlagFunction) && down) {
-            if (event.type != NSEventTypeFlagsChanged && event.characters.length > 0) {
-                // Only works for BMP code points (up to U+FFFF), but that's unlikely to matter at
-                // this stage...
-                wchar_t character = [event.characters characterAtIndex:0];
-                if (!std::iswcntrl(character)) {
-                    self.inputManager->HandleKeyEvent(
-                        (plKeyDef)keycode, down,
-                        event.type == NSEventTypeFlagsChanged ? false : event.ARepeat, character);
-                }
+        });
+    }
+    if (!(modifierFlags & NSEventModifierFlagFunction) && down) {
+        if (event.type != NSEventTypeFlagsChanged && event.characters.length > 0) {
+            // Only works for BMP code points (up to U+FFFF), but that's unlikely to matter at
+            // this stage...
+            wchar_t character = [event.characters characterAtIndex:0];
+            if (!std::iswcntrl(character)) {
+                _eventQueue->AddEvent(^(const plEventQueueContext &context) {
+                    context.inputManager->HandleKeyEvent(
+                                                      (plKeyDef)keycode, down,
+                                                      event.type == NSEventTypeFlagsChanged ? false : event.ARepeat, character);
+                });
             }
         }
     }

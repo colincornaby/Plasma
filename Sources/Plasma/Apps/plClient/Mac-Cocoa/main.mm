@@ -59,6 +59,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #import "PLSKeyboardEventMonitor.h"
 #import "PLSLoginWindowController.h"
 #import "PLSPatcherWindowController.h"
+#import "PLSRenderLoop.h"
 #import "PLSServerStatus.h"
 #import "PLSView.h"
 
@@ -89,6 +90,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "plNetClient/plNetClientMgr.h"
 #include "plNetGameLib/plNetGameLib.h"
 #include "plProduct.h"
+#include "plEventQueue.h"
 
 // Until a pipeline is integrated with macOS, need to import the
 // abstract definition.
@@ -103,6 +105,7 @@ extern bool gSDLLocal;
 bool NeedsResolutionUpdate = false;
 
 std::vector<ST::string> args;
+plEventQueue *eventQueue;
 
 struct PLSWakeLockHolder {
 private:
@@ -182,18 +185,16 @@ public:
                                              NSWindowDelegate,
                                              PLSViewDelegate,
                                              PLSLoginWindowControllerDelegate,
-                                             PLSPatcherDelegate>
+                                             PLSPatcherDelegate,
+                                             PLSRenderLoopDelegate>
 {
 @public
     plClientLoader      gClient;
-    dispatch_source_t   _displaySource;
     plMacDisplayHelper* _displayHelper;
     PLSWakeLockHolder   _wakeLockHolder;
 }
 
 @property(retain) PLSKeyboardEventMonitor* eventMonitor;
-@property CVDisplayLinkRef displayLink;
-@property dispatch_queue_t renderQueue;
 @property CALayer* renderLayer;
 @property(weak) PLSView* plsView;
 @property PLSPatcherWindowController* patcherWindow;
@@ -201,6 +202,7 @@ public:
 @property PLSPatcher* patcher;
 @property PLSLoginWindowController* loginWindow;
 @property NSWindow* gameWindow;
+@property PLSRenderLoop* renderLoop;
 
 @end
 
@@ -296,6 +298,9 @@ static void* const DeviceDidChangeContext = (void*)&DeviceDidChangeContext;
 
     _displayHelper = new plMacDisplayHelper();
     plDisplayHelper::SetInstance(_displayHelper);
+    
+    self.renderLoop = [[PLSRenderLoop alloc] init];
+    self.renderLoop.delegate = self;
 
     gClient.SetClientWindow((__bridge void*)view.layer);
     gClient.SetClientDisplay([window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue]);
@@ -309,13 +314,11 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)startRunLoop
 {
-    [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
     [self.plsView setBoundsSize:self.plsView.bounds.size];
     auto* msg = new plDisplayScaleChangedMsg(self.window.backingScaleFactor);
     msg->Send();
 
     dispatch_async(loadingQueue, ^{
-        [[NSRunLoop currentRunLoop] addPort:[NSMachPort port] forMode:@"PlasmaEventMode"];
         // Must be done here due to the plClient* dereference.
         if (cmdParser.IsSpecified(kArgSkipIntroMovies))
             gClient->SetFlag(plClient::kFlagSkipIntroMovies);
@@ -327,15 +330,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     dispatch_async(loadingQueue, ^{
         dispatch_async(dispatch_get_main_queue(), ^{
             [self setupRunLoop];
-            [[NSNotificationCenter defaultCenter]
-                addObserverForName:NSWindowDidChangeScreenNotification
-                            object:self.window
-                             queue:[NSOperationQueue mainQueue]
-                        usingBlock:^(NSNotification* _Nonnull note) {
-                            // if we change displays, setup a new draw loop. The new display might
-                            // have a different or variable refresh rate.
-                            [self setupRunLoop];
-                        }];
         });
     });
 }
@@ -343,39 +337,14 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 - (void)setupRunLoop
 {
     NetCliAuthAutoReconnectEnable(true);
-    if (self.displayLink) {
-        CVDisplayLinkStop(self.displayLink);
-        CVDisplayLinkRelease(self.displayLink);
-    }
-
-    _displaySource =
-        dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, dispatch_get_main_queue());
-    __weak AppDelegate* weakSelf = self;
-    dispatch_source_set_event_handler(_displaySource, ^() {
-        @autoreleasepool {
-            [self runLoop];
-        }
-    });
-    dispatch_resume(_displaySource);
-
-    CVDisplayLinkCreateWithCGDisplay(
-        [self.window.screen.deviceDescription[@"NSScreenNumber"] intValue], &_displayLink);
-    CVDisplayLinkSetOutputHandler(
-        self.displayLink,
-        ^CVReturn(CVDisplayLinkRef _Nonnull displayLink, const CVTimeStamp* _Nonnull inNow,
-                  const CVTimeStamp* _Nonnull inOutputTime, CVOptionFlags flagsIn,
-                  CVOptionFlags* _Nonnull flagsOut) {
-            dispatch_source_merge_data(_displaySource, 1);
-            return kCVReturnSuccess;
-        });
-    CVDisplayLinkStart(self.displayLink);
+    [self.renderLoop startLoop:self.plsView];
 }
 
-- (void)runLoop
+- (void)renderInRenderLoop:(PLSRenderLoop *)renderLoop
 {
-    gClient->MainLoop();
     PumpMessageQueueProc();
-
+    gClient->MainLoop();
+    
     if (gClient->GetDone()) {
         [NSApp terminate:self];
     }
@@ -394,7 +363,6 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
                      AppDelegate* appDelegate = (AppDelegate*)[NSApp delegate];
                      appDelegate->gClient->GetPipeline()->Resize((int)size.width, (int)size.height);
                  }];
-    if (gClient->GetQuitIntro()) [self runLoop];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification*)notification
@@ -502,6 +470,8 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
         return;
     }
 
+    eventQueue = new plEventQueue(&gClient);
+
     if (cmdParser.IsSpecified(kArgSkipLoginDialog)) {
         PLSLoginParameters* params = [PLSLoginParameters new];
         [params makeCurrent];
@@ -608,8 +578,8 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     }
 
     self.eventMonitor = [[PLSKeyboardEventMonitor alloc] initWithView:self.window.contentView
-                                                         inputManager:&gClient];
-    ((PLSView*)self.window.contentView).inputManager = gClient->GetInputManager();
+                                                         eventQueue:eventQueue];
+    ((PLSView*)self.window.contentView).eventQueue = eventQueue;
     [self.window makeFirstResponder:self.window.contentView];
 
     _wakeLockHolder.startUserActivity();
@@ -648,7 +618,7 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
     // macOS has requested we terminate. This could happen because the user asked us to quit, the
     // system is going to restart, etc... Do any cleanup we need to do. If we need to we can ask for
     // more time, but right now nothing in our implementation requires that.
-    CVDisplayLinkStop(self.displayLink);
+    [self.renderLoop stopLoop];
     @synchronized(_renderLayer) {
         if (gClient) {
             gClient.ShutdownStart();
@@ -706,13 +676,7 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 void PumpMessageQueueProc()
 {
-    if (![NSThread isMainThread]) {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [[NSRunLoop currentRunLoop] runMode:@"PlasmaEventMode" beforeDate:[NSDate date]];
-        });
-    } else {
-        [[NSRunLoop currentRunLoop] runMode:@"PlasmaEventMode" beforeDate:[NSDate date]];
-    }
+    eventQueue->Drain();
 }
 
 int main(int argc, const char** argv)

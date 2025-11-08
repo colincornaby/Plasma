@@ -41,7 +41,8 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 *==LICENSE==*/
 
 #import <Cocoa/Cocoa.h>
-#include "plInputCore/plInputManager.h"
+
+class plEventQueue;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -49,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface PLSView : NSView
 
-@property plInputManager* inputManager;
+@property plEventQueue* eventQueue;
 @property(weak) id<PLSViewDelegate> delegate;
 
 @end

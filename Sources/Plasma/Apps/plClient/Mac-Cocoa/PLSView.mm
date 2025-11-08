@@ -43,6 +43,8 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #import "PLSView.h"
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
+#include "plEventQueue.h"
+#include "plInputCore/plInputManager.h"
 #include "plMessage/plInputEventMsg.h"
 
 /*
@@ -206,11 +208,10 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
         pBMsg->fButton |= kRightButtonDown;
     }
 
-    @synchronized(self.layer) {
-        self.inputManager->MsgReceive(pBMsg);
-    }
-
-    delete (pBMsg);
+    self.eventQueue->AddEvent(^(const plEventQueueContext &context) {
+        context.inputManager->MsgReceive(pBMsg);
+        delete (pBMsg);
+    });
 }
 
 - (void)updateClientMouseLocation:(NSEvent*)event
@@ -233,49 +234,46 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
     pXMsg->fWx = viewLocation.x * self.window.screen.backingScaleFactor;
     pYMsg->fWy = (windowViewBounds.size.height - windowLocation.y) * self.window.screen.backingScaleFactor;
 
-    @synchronized(self.layer) {
-        if (self.inputManager) {
-            self.inputManager->MsgReceive(pXMsg);
-            self.inputManager->MsgReceive(pYMsg);
+    self.eventQueue->AddEvent(^(const plEventQueueContext &context) {
+        context.inputManager->MsgReceive(pXMsg);
+        context.inputManager->MsgReceive(pYMsg);
+        
+        if (context.inputManager->RecenterMouse()) {
+            CGPoint warpPoint = [self.window convertPointToScreen:windowLocation];
+            CGPoint newWindowLocation = windowLocation;
+
+            if (context.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9)) {
+                newWindowLocation.x = CGRectGetMidX(self.window.contentView.bounds);
+
+                // macOS won't generate a new message on warp, need to tell Plasma by hand
+                pXMsg->fWx = newWindowLocation.x * self.window.screen.backingScaleFactor;;
+                pXMsg->fX = 0.5f;
+                context.inputManager->MsgReceive(pXMsg);
+            }
+
+            if (context.inputManager->RecenterMouse() && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9)) {
+                newWindowLocation.y = CGRectGetMidY(self.window.contentView.bounds);
+
+                // macOS won't generate a new message on warp, need to tell Plasma by hand
+                pYMsg->fWy = newWindowLocation.y * self.window.screen.backingScaleFactor;;
+                context.inputManager->MsgReceive(pYMsg);
+            }
+
+            if (!CGPointEqualToPoint(newWindowLocation, windowLocation)) {
+                warpPoint = [self.window convertPointToScreen:newWindowLocation];
+                warpPoint.y = [[NSScreen screens][0] frame].size.height - warpPoint.y;
+                CGWarpMouseCursorPosition(warpPoint);
+                // macOS will pause input afer warp, turn that off
+                CGEventSourceRef eventSourceRef =
+                    CGEventSourceCreate(kCGEventSourceStateCombinedSessionState);
+                CGEventSourceSetLocalEventsSuppressionInterval(eventSourceRef, 0.0);
+                CFRelease(eventSourceRef);
+            }
         }
-    }
 
-    if (self.inputManager->RecenterMouse()) {
-        CGPoint warpPoint = [self.window convertPointToScreen:windowLocation];
-        CGPoint newWindowLocation = windowLocation;
-
-        if (self.inputManager->RecenterMouse() && (pXMsg->fX <= 0.1 || pXMsg->fX >= 0.9)) {
-            newWindowLocation.x = CGRectGetMidX(self.window.contentView.bounds);
-
-            // macOS won't generate a new message on warp, need to tell Plasma by hand
-            pXMsg->fWx = newWindowLocation.x * self.window.screen.backingScaleFactor;;
-            pXMsg->fX = 0.5f;
-            self.inputManager->MsgReceive(pXMsg);
-        }
-
-        if (self.inputManager->RecenterMouse() && (pYMsg->fY <= 0.1 || pYMsg->fY >= 0.9)) {
-            newWindowLocation.y = CGRectGetMidY(self.window.contentView.bounds);
-
-            // macOS won't generate a new message on warp, need to tell Plasma by hand
-            pYMsg->fWy = newWindowLocation.y * self.window.screen.backingScaleFactor;;
-            pYMsg->fY = 0.5f;
-            self.inputManager->MsgReceive(pYMsg);
-        }
-
-        if (!CGPointEqualToPoint(newWindowLocation, windowLocation)) {
-            warpPoint = [self.window convertPointToScreen:newWindowLocation];
-            warpPoint.y = [[NSScreen screens][0] frame].size.height - warpPoint.y;
-            CGWarpMouseCursorPosition(warpPoint);
-            // macOS will pause input afer warp, turn that off
-            CGEventSourceRef eventSourceRef =
-                CGEventSourceCreate(kCGEventSourceStateCombinedSessionState);
-            CGEventSourceSetLocalEventsSuppressionInterval(eventSourceRef, 0.0);
-            CFRelease(eventSourceRef);
-        }
-    }
-
-    delete (pXMsg);
-    delete (pYMsg);
+        delete (pXMsg);
+        delete (pYMsg);
+    });
 }
 
 - (void)viewDidChangeBackingProperties

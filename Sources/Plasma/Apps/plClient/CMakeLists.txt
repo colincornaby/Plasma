@@ -100,6 +100,7 @@ elseif(APPLE)
         Mac-Cocoa/PLSPatcherWindowController.mm
         Mac-Cocoa/PLSPatcher.mm
         Mac-Cocoa/PLSServerStatus.mm
+        plEventQueue.cpp
     )
     list(APPEND plClient_HEADERS
         Mac-Cocoa/NSString+StringTheory.h
@@ -110,6 +111,7 @@ elseif(APPLE)
         Mac-Cocoa/PLSPatcherWindowController.h
         Mac-Cocoa/PLSPatcher.h
         Mac-Cocoa/PLSServerStatus.h
+        plEventQueue.h
     )
     list(APPEND plClient_RESOURCES
         Mac-Cocoa/banner.png

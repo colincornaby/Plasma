@@ -42,13 +42,15 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 
 #import <Cocoa/Cocoa.h>
 
+#import "plEventQueue.h"
+
 class plClientLoader;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface PLSKeyboardEventMonitor : NSObject
 
-- (id)initWithView:(NSView*)view inputManager:(plClientLoader*)gClient;
+- (id)initWithView:(NSView*)view eventQueue:(plEventQueue*)eventQueue;
 
 @end
 
