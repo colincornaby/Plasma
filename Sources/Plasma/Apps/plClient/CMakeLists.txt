@@ -99,6 +99,7 @@ elseif(APPLE)
         Mac-Cocoa/PLSLoginWindowController.mm
         Mac-Cocoa/PLSPatcherWindowController.mm
         Mac-Cocoa/PLSPatcher.mm
+        Mac-Cocoa/PLSRenderLoop.m
         Mac-Cocoa/PLSServerStatus.mm
         plEventQueue.cpp
     )
@@ -110,6 +111,7 @@ elseif(APPLE)
         Mac-Cocoa/PLSLoginWindowController.h
         Mac-Cocoa/PLSPatcherWindowController.h
         Mac-Cocoa/PLSPatcher.h
+        Mac-Cocoa/PLSRenderLoop.h
         Mac-Cocoa/PLSServerStatus.h
         plEventQueue.h
     )

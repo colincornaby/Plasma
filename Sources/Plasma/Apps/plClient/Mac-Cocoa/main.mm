@@ -73,6 +73,7 @@ You can contact Cyan Worlds, Inc. by email legal@cyan.com
 #include "hsDarwin.h"
 #include "plClient/plClient.h"
 #include "plClient/plClientLoader.h"
+#include "pfPython/cyPythonInterface.h"
 #include "plCmdParser.h"
 #include "pfConsoleCore/pfConsoleEngine.h"
 #include "pfConsoleCore/pfServerIni.h"
@@ -342,12 +343,21 @@ dispatch_queue_t loadingQueue = dispatch_queue_create("", DISPATCH_QUEUE_SERIAL)
 
 - (void)renderInRenderLoop:(PLSRenderLoop *)renderLoop
 {
-    PumpMessageQueueProc();
+    PythonInterface::releaseGIL();
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        PythonInterface::acquireGIL();
+        PumpMessageQueueProc();
+        PythonInterface::releaseGIL();
+    });
+    PythonInterface::acquireGIL();
+    
     gClient->MainLoop();
     
-    if (gClient->GetDone()) {
-        [NSApp terminate:self];
-    }
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        if (gClient->GetDone()) {
+            [NSApp terminate:self];
+        }
+    });
 }
 
 - (void)renderView:(PLSView*)view didChangeOutputSize:(CGSize)size scale:(NSUInteger)scale

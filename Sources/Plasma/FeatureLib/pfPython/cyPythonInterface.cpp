@@ -875,6 +875,8 @@ static bool ICheckedInit(_ConfigT& config, plStatusLog* dbgLog, const char* errm
     return true;
 }
 
+thread_local bool _gilHeld = false;
+
 void PythonInterface::initPython()
 {
     // if haven't been initialized then do it
@@ -933,6 +935,8 @@ void PythonInterface::initPython()
     config._init_main = 1;
     if (!ICheckedInit<PyConfig, Py_InitializeFromConfig, PyConfig_Clear>(config, dbgLog, "Main init failed!"))
         return;
+    PyEval_InitThreads();
+    acquireGIL();
 
     // Initialize built-in Plasma modules. For some reason, when using the append-inittab thingy,
     // we get complaints about these modules being leaked :(
@@ -998,6 +1002,26 @@ void PythonInterface::initPython()
 
     PyConfig_Clear(&config);
     initialized++;
+}
+
+thread_local PyGILState_STATE _state;
+
+void PythonInterface::acquireGIL()
+{
+    if (initialized && !_gilHeld)
+    {
+        _state = PyGILState_Ensure();
+        _gilHeld = true;
+    }
+}
+
+void PythonInterface::releaseGIL()
+{
+    if (initialized && _gilHeld)
+    {
+        PyGILState_Release(_state);
+        _gilHeld = false;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////

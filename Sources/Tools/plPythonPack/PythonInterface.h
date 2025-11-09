@@ -50,6 +50,8 @@ namespace PythonInterface
 {
     void initPython(const plFileName& rootDir, const std::vector<plFileName>& paths, FILE* outstream=stdout, FILE* errstream=stderr);
     void finiPython();
+    void acquireGIL();
+    void releaseGIL();
 
     PyObject* CompileString(const char *command, const plFileName& filename);
     bool DumpObject(PyObject* pyobj, char** pickle, Py_ssize_t* size);

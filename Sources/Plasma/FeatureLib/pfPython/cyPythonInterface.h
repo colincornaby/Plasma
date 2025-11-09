@@ -95,6 +95,9 @@ public:
 
     /** Initialize the PythonPack module hook */
     static void initPyPackHook();
+    
+    static void acquireGIL();
+    static void releaseGIL();
 
     // Initialize the Plasma module
     static void AddPlasmaMethods(PyObject* m);

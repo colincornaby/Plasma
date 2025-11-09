@@ -112,6 +112,18 @@ void PythonInterface::finiPython()
     }
 }
 
+thread_local PyThreadState *_threadState;
+
+void PythonInterface::acquireGIL()
+{
+    _threadState = PyEval_SaveThread();
+}
+
+void PythonInterface::releaseGIL()
+{
+    PyEval_RestoreThread(_threadState);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //
 //  Function   : CompileString
