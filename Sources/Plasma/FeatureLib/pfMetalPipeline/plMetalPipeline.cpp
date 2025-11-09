@@ -1659,7 +1659,11 @@ bool plMetalPipeline::IHandleMaterialPass(hsGMaterial* material, uint32_t pass, 
                                   postEncodeTransform);
         }
         
-        fragmentShaderDescription.fUsePerPixelLighting = PLASMA_FORCE_PER_PIXEL_LIGHTING;
+        if(!fragmentShaderDescription.fUsePerPixelLighting)
+        {
+            fragmentShaderDescription.fUsePerPixelLighting = PLASMA_FORCE_PER_PIXEL_LIGHTING;
+        }
+        
         ISetEnablePerPixelLighting( fragmentShaderDescription.fUsePerPixelLighting  );
 
         plMetalDevice::plMetalLinkedPipeline* linkedPipeline = plMetalMaterialPassPipelineState(&fDevice, vRef, fragmentShaderDescription).GetRenderPipelineState();
@@ -1681,9 +1685,9 @@ void plMetalPipeline::IBindLights()
     if (!(fState.fBoundLights.has_value() && memcmp(&fState.fBoundLights, &fLights, lightSize) == 0)) {
         memcpy(&fState.fBoundLights, &fLights, lightSize);
         if (fLightingPerPixel) {
-            fDevice.CurrentRenderCommandEncoder()->setFragmentBytes(&fLights, lightSize, FragmentShaderArgumentLights);
+            fDevice.CurrentRenderCommandEncoder()->setFragmentBytes(&fLights, sizeof(plMetalLights), FragmentShaderArgumentLights);
         } else {
-            fDevice.CurrentRenderCommandEncoder()->setVertexBytes(&fLights, lightSize, VertexShaderArgumentLights);
+            fDevice.CurrentRenderCommandEncoder()->setVertexBytes(&fLights, sizeof(plMetalLights), VertexShaderArgumentLights);
         }
     }
     
