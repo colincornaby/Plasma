@@ -169,6 +169,7 @@ void plMetalMaterialShaderRef::FastEncodeArguments(MTL::RenderCommandEncoder* en
         plLayerInterface *bumpLayer = fMaterial->GetLayer(fMaterial->GetNumLayers()-1);
         auto texture = (plMetalTextureRef*)bumpLayer->GetTexture()->GetDeviceRef();
         encoder->setFragmentTexture(texture->fTexture, 7);
+        encoder->setVertexBytes(&fBumps[pass].value(), sizeof(plMetalBumpMapping), VertexShaderArgumentBumpState);
     }
 }
 
