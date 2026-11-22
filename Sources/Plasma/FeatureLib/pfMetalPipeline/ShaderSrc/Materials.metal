@@ -50,8 +50,16 @@ half4 FragmentShaderArguments::sampleLayer(const size_t index, const half4 verte
         if (miscFlags[index] & kMiscPerspProjection) {
             sampleCoord.xy /= sampleCoord.z;
         }
-        
-        device ShaderLayerType &layer = layers[index];
+
+#if SHADER_TIER == 2
+        device ShaderLayerType &layer = pass.layers[index];
+#else
+        // Tier 1 doesn't support contiguous pointer offset lookup
+        // Each layer is bound as it's own buffer, lookup the pointer
+        // to the buffer
+        device ShaderLayerType *layer0 = pass.layer1;
+        device ShaderLayerType &layer = *(layer0 + index);
+#endif
         // do the actual sample
         if (passType == PassTypeTexture) {
             return layer.texture.sample(layer.sampler, sampleCoord.xy);

@@ -85,8 +85,10 @@ target_link_libraries(pfMetalPipeline
 )
 add_dependencies(
     pfMetalPipeline
-    pfMetalPipelineShadersMSL21
-    pfMetalPipelineShadersMSL23
+    pfMetalPipelineShadersMSL21T1
+    pfMetalPipelineShadersMSL21T2
+    pfMetalPipelineShadersMSL23T1
+    pfMetalPipelineShadersMSL23T2
 )
 
 target_include_directories(pfMetalPipeline PUBLIC ${metalcpp_SOURCE_DIR})
@@ -96,28 +98,68 @@ source_group("Source Files" FILES ${pfMetalPipeline_SOURCES})
 source_group("Header Files" FILES ${pfMetalPipeline_HEADERS})
 
 # All supported Macs for Plasma/Metal support MSL 2.1
-add_metal_shader_library(pfMetalPipelineShadersMSL21
+add_metal_shader_library(pfMetalPipelineShadersMSL21T1
     STANDARD macos-metal2.1
     ${pfMetalPipeline_SHADERS}
 )
-target_include_directories(pfMetalPipelineShadersMSL21
+target_include_directories(pfMetalPipelineShadersMSL21T1
     PRIVATE
     $<TARGET_PROPERTY:pnNucleusInc,INTERFACE_INCLUDE_DIRECTORIES>
 )
-set_target_properties(pfMetalPipelineShadersMSL21 PROPERTIES
+set_target_properties(pfMetalPipelineShadersMSL21T1 PROPERTIES
+    XCODE_ATTRIBUTE_MTL_PREPROCESSOR_DEFINITIONS
+        "SHADER_TIER=1"
+)
+set_target_properties(pfMetalPipelineShadersMSL21T1 PROPERTIES
+    FOLDER FeatureLib
+)
+
+add_metal_shader_library(pfMetalPipelineShadersMSL21T2
+    STANDARD macos-metal2.1
+    ${pfMetalPipeline_SHADERS}
+)
+target_include_directories(pfMetalPipelineShadersMSL21T2
+    PRIVATE
+    $<TARGET_PROPERTY:pnNucleusInc,INTERFACE_INCLUDE_DIRECTORIES>
+)
+set_target_properties(pfMetalPipelineShadersMSL21T2 PROPERTIES
+    XCODE_ATTRIBUTE_MTL_PREPROCESSOR_DEFINITIONS
+        "SHADER_TIER=2"
+)
+set_target_properties(pfMetalPipelineShadersMSL21T2 PROPERTIES
     FOLDER FeatureLib
 )
 
 # Build a 2.3 varient for macOS 11 and/or Apple Silicon specific features
-add_metal_shader_library(pfMetalPipelineShadersMSL23
+add_metal_shader_library(pfMetalPipelineShadersMSL23T1
     STANDARD macos-metal2.3
     ${pfMetalPipeline_SHADERS}
 )
-target_include_directories(pfMetalPipelineShadersMSL23
+target_include_directories(pfMetalPipelineShadersMSL23T1
     PRIVATE
     $<TARGET_PROPERTY:pnNucleusInc,INTERFACE_INCLUDE_DIRECTORIES>
 )
-set_target_properties(pfMetalPipelineShadersMSL23 PROPERTIES
+set_target_properties(pfMetalPipelineShadersMSL23T1 PROPERTIES
+    XCODE_ATTRIBUTE_MTL_PREPROCESSOR_DEFINITIONS
+        "SHADER_TIER=1"
+)
+set_target_properties(pfMetalPipelineShadersMSL23T1 PROPERTIES
+    FOLDER FeatureLib
+)
+
+add_metal_shader_library(pfMetalPipelineShadersMSL23T2
+    STANDARD macos-metal2.3
+    ${pfMetalPipeline_SHADERS}
+)
+target_include_directories(pfMetalPipelineShadersMSL23T2
+    PRIVATE
+    $<TARGET_PROPERTY:pnNucleusInc,INTERFACE_INCLUDE_DIRECTORIES>
+)
+set_target_properties(pfMetalPipelineShadersMSL23T2 PROPERTIES
+    XCODE_ATTRIBUTE_MTL_PREPROCESSOR_DEFINITIONS
+        "SHADER_TIER=2"
+)
+set_target_properties(pfMetalPipelineShadersMSL23T2 PROPERTIES
     FOLDER FeatureLib
 )
 
@@ -135,6 +177,16 @@ if(NOT DEFINED CMAKE_XCODE_VERSION_MAJOR OR
     set_target_properties(pfMetalPipelineShadersMSL30 PROPERTIES
         FOLDER FeatureLib
     )
+
+set_target_properties(pfMetalPipelineShadersMSL30 PROPERTIES
+    XCODE_ATTRIBUTE_MTL_PREPROCESSOR_DEFINITIONS
+        "SHADER_TIER=2"
+)
+
+    target_compile_options(pfMetalPipelineShadersMSL30 PRIVATE
+        "-D SHADER_TIER=2"
+    )
+
     target_compile_definitions(pfMetalPipeline
         PRIVATE
         METAL_3_SDK

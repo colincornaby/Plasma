@@ -121,7 +121,7 @@ enum plMetalShaderArgument
     FragmentShaderArgumentShadowCastAlphaSrc = 8,
     /// Material properties for vertex lighting
     FragmentShaderArgumentMaterialLighting = 10,
-    FragmentShaderLayers = 11,
+    FragmentShaderLayers = 15,
 };
 
 enum plMetalVertexAttribute

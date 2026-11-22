@@ -59,14 +59,10 @@ enum class plMetalArgumentBufferTier : NS::UInteger
     // Tier 1 devices don't have a guaranteed memory layout, we need
     // to through an encoder front end to encode buffers
     Tier1 = MTL::ArgumentBuffersTier1,
-#ifdef METAL_3_SDK
     // Tier 2 devices have a guaranteed memory layout, we can access
     // the buffer directly without overhead. Only available on Metal 3
     // hardware.
-    Tier2 = MTL::ArgumentBuffersTier2,
-#else
-    Tier2 = NS::UIntegerMax,
-#endif
+    Tier2 = MTL::ArgumentBuffersTier2
 };
 
 template <class T>

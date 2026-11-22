@@ -84,6 +84,7 @@ void plMetalBumpArgumentBuffer::Set(const std::vector<plMetalBumpMapping>& bumps
         return;
     }
     ConfigureBuffer();
+    
     if (fTier == plMetalArgumentBufferTier::Tier1) {
         // Tier 1, because Tier 1 doesn't guarantee memory layout, go through the encoder
         for (size_t i = 0; i < bumps.size(); ++i) {
@@ -204,11 +205,17 @@ void plMetalLayerListArgumentBuffer::Set(const plLayerInterface* layer, const si
         }
     }
 
+#ifdef METAL_3_SDK
+    bool allowDirectEncode = fTier == plMetalArgumentBufferTier::Tier2;
+#else
+    bool allowDirectEncode = false;
+#endif
+
     // Older tier 1 devices don't have aligned structs and pointer sizes with the CPU
     // so an encoder has to be used as a go between.
     // Tier 2 devices are aligned with the CPU so we can send structs and pointers
     // directly without an encoder.
-    if (fTier == plMetalArgumentBufferTier::Tier1) {
+    if (!allowDirectEncode) {
         auto& layerRecord = fLayers[layerIndex];
         plBitmap* texture = layer->GetTexture();
         fEncoder->setArgumentBuffer(GetBuffer(), 0, layerIndex);
@@ -312,6 +319,13 @@ void plMetalLayerListArgumentBuffer::Bind(MTL::RenderCommandEncoder* encoder)
         if (layer.texture3D != nullptr)
             encoder->useResource(layer.texture3D, MTL::ResourceUsageRead, MTL::RenderStageFragment);
     }
-    encoder->setFragmentBuffer(GetBuffer(), 0, FragmentShaderLayers);
+
+    if (fTier == plMetalArgumentBufferTier::Tier2) {
+        encoder->setFragmentBuffer(GetBuffer(), 0, FragmentShaderLayers);
+    } else {
+        for (int i=0; i<fNumElements; i++) {
+            encoder->setFragmentBuffer(GetBuffer(), fLayerSize*i, FragmentShaderLayers+i);
+        }
+    }
     fBoundBufferIndex = fCurrentBufferIndex;
 }

@@ -69,14 +69,15 @@ void plMetalDevice::LoadLibrary()
     // still load on Intel Macs, but we need to be running at least
     // macOS 11. Intel Macs running older versions of macOS need to
     // run an MSL 2.1 version of the library.
+    bool isTier1 = fArgumentBuffersTier == MTL::ArgumentBuffersTier1;
 #ifdef TARGET_OS_OSX
     if (@available(macOS 11, iOS 14, *)) {
-        NSURL* shaderURL = [NSBundle.mainBundle URLForResource:@"pfMetalPipelineShadersMSL23" withExtension:@"metallib"];
+        NSURL* shaderURL = [NSBundle.mainBundle URLForResource:isTier1 ? @"pfMetalPipelineShadersMSL23T1" : @"pfMetalPipelineShadersMSL23T2" withExtension:@"metallib"];
         fShaderLibrary = fMetalDevice->newLibrary(static_cast<NS::URL*>(shaderURL), &error);
     } else
 #endif
     {
-        NSURL* shaderURL = [NSBundle.mainBundle URLForResource:@"pfMetalPipelineShadersMSL21" withExtension:@"metallib"];
+        NSURL* shaderURL = [NSBundle.mainBundle URLForResource:isTier1 ? @"pfMetalPipelineShadersMSL21T1" : @"pfMetalPipelineShadersMSL21T2" withExtension:@"metallib"];
         fShaderLibrary = fMetalDevice->newLibrary(static_cast<NS::URL*>(shaderURL), &error);
     }
     hsAssert(error == nil,  "Unexpected error loading Metal shader library");

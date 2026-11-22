@@ -191,8 +191,10 @@ endif()
 
 if(PLASMA_PIPELINE_METAL)
     target_embed_metal_shader_libraries(plClient
-        pfMetalPipelineShadersMSL21
-        pfMetalPipelineShadersMSL23
+        pfMetalPipelineShadersMSL21T1
+        pfMetalPipelineShadersMSL21T2
+        pfMetalPipelineShadersMSL23T1
+        pfMetalPipelineShadersMSL23T2
     )
 
     if(NOT DEFINED CMAKE_XCODE_VERSION_MAJOR OR

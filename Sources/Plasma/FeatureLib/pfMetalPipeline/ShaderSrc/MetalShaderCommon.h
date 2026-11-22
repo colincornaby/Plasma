@@ -64,29 +64,54 @@ struct plTier1Bumpmap
     sampler bumpTextureSampler  [[ id(samplerID) ]];
     float scale [[ id(dScaleID) ]];
 };
-    
-struct plTier1Layer
+
+struct plMetal2Layer
 {
     texture2d<half> texture [[ id(0) ]];
     texture3d<half> texture3D [[ id(1) ]];
     sampler         sampler [[ id(2) ]];
 };
-    
+
 #if __METAL_VERSION__ >= 300
 typedef plMetalBumpmap ShaderBumpMapType;
 #else
 typedef plTier1Bumpmap ShaderBumpMapType;
 #endif
-    
+
+struct plMetal2Pass
+{
+#if SHADER_TIER == 2
+    device plMetal2Layer *layers [[ buffer(FragmentShaderLayers) ]];
+#else
+    device plMetal2Layer *layer1 [[ buffer(FragmentShaderLayers) ]];
+    device plMetal2Layer *layer2 [[ buffer(FragmentShaderLayers+1) ]];
+    device plMetal2Layer *layer3 [[ buffer(FragmentShaderLayers+2) ]];
+    device plMetal2Layer *layer4 [[ buffer(FragmentShaderLayers+3) ]];
+    device plMetal2Layer *layer5 [[ buffer(FragmentShaderLayers+4) ]];
+    device plMetal2Layer *layer6 [[ buffer(FragmentShaderLayers+5) ]];
+    device plMetal2Layer *layer7 [[ buffer(FragmentShaderLayers+6) ]];
+    device plMetal2Layer *layer8 [[ buffer(FragmentShaderLayers+7) ]];
+#endif
+};
+
 #if __METAL_VERSION__ >= 300
+struct plMetal3Pass
+{
+    device plMetalLayer *layers [[ buffer(FragmentShaderLayers) ]];
+};
+#endif
+
+#if __METAL_VERSION__ >= 300
+typedef plMetal3Pass ShaderPassType;
 typedef plMetalLayer ShaderLayerType;
 #else
-typedef plTier1Layer ShaderLayerType;
+typedef plMetal2Pass ShaderPassType;
+typedef plMetal2Layer ShaderLayerType;
 #endif
 
 struct FragmentShaderArguments
 {
-    device ShaderLayerType *layers [[ buffer(FragmentShaderLayers) ]];
+    ShaderPassType pass;
     const constant plMetalFragmentShaderArgumentBuffer*     bufferedUniforms   [[ buffer(FragmentShaderArgumentUniforms)   ]];
     half4 sampleLayer(const size_t index, const half4 vertexColor, const uint8_t passType, float3 sampleCoord) const;
 };
